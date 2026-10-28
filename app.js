@@ -327,8 +327,8 @@
       apiPost({ action: 'inquiry', id: ID, message: ta.value.trim() }).then(function (r) {
         if (!r.ok) throw new Error(r.error);
         ta.value = ''; $('#ask-box').hidden = true; $('#ask-sent').hidden = false; $('#ask-open').setAttribute('aria-expanded', 'false');
-      }).catch(function () {
-        toast('보내지 못했어요. 잠시 후 다시 시도해주세요.');
+      }).catch(function (e) {
+        toast(e && e.message === 'rate_limited' ? '메시지는 1시간에 5번까지 보낼 수 있어요. 급하면 전화 주세요.' : '보내지 못했어요. 잠시 후 다시 시도해주세요.');
         send.disabled = false;
       }).then(function () { send.textContent = '보내기'; });
     });
@@ -464,6 +464,7 @@
   apiGet({ action: 'invoice', id: ID }).then(function (r) {
     if (!r.ok) {
       if (r.error === 'cancelled') return fail('취소된 청구서예요', '자세한 내용은 ' + (CO.phone || '') + '로 문의해주세요.');
+      if (r.error === 'rate_limited') return fail('잠시 후 다시 열어주세요', '짧은 시간에 요청이 많았어요. 몇 분 뒤 새로고침해주세요.');
       return fail('청구서를 찾을 수 없어요', '링크가 정확한지 확인해주세요. 문의: ' + (CO.phone || ''));
     }
     state.inv = r.invoice; state.registered = !!r.registered; if (r.client) state.client = r.client;

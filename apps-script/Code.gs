@@ -10,6 +10,7 @@
  *   SEAL_FILE_ID     : 직인 이미지(PNG) 드라이브 파일 ID
  *   PLAB_BIZ_FILE_ID : 프랩 사업자등록증 파일 ID (거래처 '프랩 서류 받기'용)
  *   PLAB_BANK_FILE_ID: 프랩 통장사본 파일 ID
+ *   HISTORY_DAYS     : (선택) 입금 완료 후 며칠이 지나면 '지난 청구' 목록을 숨길지. 기본 30
  *
  * 거래처 구분
  *   신규 : 거래 1건 (사이트에서 서류 제출)
@@ -24,17 +25,28 @@ var SITE_URL = 'https://tax.plab.life/';
 var TZ = 'Asia/Seoul';
 
 var SHEETS = {
-  invoice: { name: '청구서', headers: ['링크ID', '문서번호', '발행일', '지급기한', '거래처 상호', '구분', '거래처 사업자번호', '거래처 대표자', '건명', '금액', '할인', '비고', '상태', '세금계산서 발행일', '링크', '생성일'] },
+  invoice: { name: '청구서', headers: ['링크ID', '문서번호', '발행일', '지급기한', '거래처 상호', '구분', '거래처 사업자번호', '거래처 대표자', '건명', '금액', '할인', '비고', '상태', '입금일', '세금계산서 발행일', '링크', '생성일'] },
   item:    { name: '품목',   headers: ['문서번호', '품목명', '수량', '단가'] },
-  client:  { name: '거래처', headers: ['사업자번호', '상호', '사업자명', '대표자', '세금계산서 이메일', '구분', '등록 경로', '사업자등록증', '통장사본', '첫 거래일', '거래 건수', '최근 청구일', '누적 청구액', '메모', '제출일', '청구서 문서번호'] },
+  client:  { name: '거래처', headers: ['사업자번호', '상호', '사업자명', '대표자', '세금계산서 이메일', '구분', '등록 경로', '사업자등록증', '통장사본', '첫 거래일', '거래 건수', '최근 청구일', '누적 청구액', '메모', '제출일', '청구서 문서번호', '선택 목록'] },
   inquiry: { name: '문의',   headers: ['일시', '문서번호', '거래처', '구분', '내용', '처리'] }
 };
 // 스크립트가 채우는 칸(파란색으로 표시)
 var AUTO_COLS = {
-  invoice: ['링크ID', '문서번호', '발행일', '지급기한', '구분', '거래처 사업자번호', '거래처 대표자', '링크', '생성일'],
-  client:  ['구분', '첫 거래일', '거래 건수', '최근 청구일', '누적 청구액', '제출일', '청구서 문서번호'],
+  invoice: ['링크ID', '문서번호', '발행일', '지급기한', '구분', '거래처 사업자번호', '거래처 대표자', '입금일', '링크', '생성일'],
+  client:  ['구분', '첫 거래일', '거래 건수', '최근 청구일', '누적 청구액', '제출일', '청구서 문서번호', '선택 목록'],
   inquiry: ['일시', '문서번호', '거래처', '구분', '내용']
 };
+
+// 사람이 고치면 링크가 깨지거나 집계가 틀어지는 칸 — 고치려 하면 경고창을 띄웁니다.
+var LOCK_COLS = {
+  invoice: ['링크ID', '문서번호', '구분', '링크', '생성일'],
+  client:  ['구분', '첫 거래일', '거래 건수', '최근 청구일', '누적 청구액', '선택 목록']
+};
+var LOCK_TAG = 'PLAB 자동 칸';
+
+// 같은 링크에서 1시간에 보낼 수 있는 요청 수
+var RATE_LIMITS = { inquiry: 5, checkBiz: 20, register: 5, setEmail: 5, asset: 30, invoice: 120 };
+var CACHE_SECONDS = 300;
 
 var MAX_FILE_BYTES = 10 * 1024 * 1024;
 var ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf'];
@@ -45,8 +57,11 @@ function onOpen() {
   try { ensureHeaders_(); applyFormats_(); } catch (e) {}
   SpreadsheetApp.getUi().createMenu('PLAB 청구서')
     .addItem('링크 만들기 (ID 없는 행)', 'makeLinks')
+    .addItem('선택한 청구서 링크 재발급', 'reissueLinks')
     .addItem('거래처 집계 새로고침', 'refreshAll')
     .addSeparator()
+    .addItem('자동 칸 보호 다시 걸기', 'protectAutoCols')
+    .addItem('1시간마다 자동 집계 켜기', 'installTriggers')
     .addItem('초기 설정 (시트 만들기)', 'setup')
     .addItem('슬랙 알림 테스트', 'testSlack')
     .addToUi();
@@ -76,6 +91,61 @@ function setup() {
   applyFormats_();
   makeLinks();
   refreshAll();
+  protectAutoCols();
+  installTriggers();
+}
+
+/** 거래처 집계를 1시간마다 돌리는 시간 트리거를 하나만 설치합니다. */
+function installTriggers() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'refreshAll') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('refreshAll').timeBased().everyHours(1).create();
+  try { SpreadsheetApp.getActive().toast('1시간마다 거래처 집계를 새로 계산해요.'); } catch (e) {}
+}
+
+/** 자동 칸에 경고형 보호를 겁니다. 고칠 수는 있지만 고치기 전에 경고창이 떠요. */
+function protectAutoCols() {
+  var ss = SpreadsheetApp.getActive();
+  Object.keys(LOCK_COLS).forEach(function (k) {
+    var sh = ss.getSheetByName(SHEETS[k].name);
+    if (!sh) return;
+    sh.getProtections(SpreadsheetApp.ProtectionType.RANGE).forEach(function (p) {
+      if (String(p.getDescription()).indexOf(LOCK_TAG) === 0) p.remove();
+    });
+    var h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    LOCK_COLS[k].forEach(function (name) {
+      var c = h.indexOf(name);
+      if (c < 0) return;
+      sh.getRange(2, c + 1, Math.max(1, sh.getMaxRows() - 1), 1).protect()
+        .setDescription(LOCK_TAG + ' · ' + name).setWarningOnly(true);
+    });
+  });
+  try { ss.toast('자동 칸에 보호를 걸었어요.'); } catch (e) {}
+}
+
+/** 시트에서 선택한 청구서 행의 링크를 새로 만듭니다. 예전 링크는 바로 열리지 않게 돼요. */
+function reissueLinks() {
+  var ui = SpreadsheetApp.getUi();
+  var sh = SpreadsheetApp.getActiveSheet();
+  if (sh.getName() !== SHEETS.invoice.name) { ui.alert('청구서 탭에서 재발급할 행을 선택해주세요.'); return; }
+  var rng = sh.getActiveRange();
+  var first = Math.max(2, rng.getRow()), last = rng.getLastRow();
+  if (last < first) { ui.alert('청구서 행을 선택해주세요.'); return; }
+  var h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var cId = h.indexOf('링크ID'), cLink = h.indexOf('링크'), cNo = h.indexOf('문서번호');
+  var nos = sh.getRange(first, cNo + 1, last - first + 1, 1).getValues().map(function (r) { return r[0]; }).filter(String);
+  if (!nos.length) { ui.alert('선택한 행에 문서번호가 없어요.'); return; }
+  var ok = ui.alert('링크 재발급', nos.join(', ') + '\n\n이 청구서의 링크를 새로 만들까요? 예전 링크는 더 이상 열리지 않아요.', ui.ButtonSet.YES_NO);
+  if (ok !== ui.Button.YES) return;
+  for (var r = first; r <= last; r++) {
+    if (!sh.getRange(r, cNo + 1).getValue()) continue;
+    var id = newId_();
+    sh.getRange(r, cId + 1).setValue(id);
+    sh.getRange(r, cLink + 1).setValue(SITE_URL + '?id=' + id);
+  }
+  bumpCache_();
+  ui.alert('새 링크를 만들었어요. 링크 열의 주소를 거래처에 다시 보내주세요.');
 }
 
 /** 예전에 만든 시트에 새 머리글이 없으면 정해진 순서 자리에 열을 끼워 넣습니다. */
@@ -121,12 +191,13 @@ function applyFormats_() {
   if (st) inv.getRange(2, st, rows, 1).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(['입금 대기', '입금 완료', '취소'], true).build());
   // 거래처 상호: 거래처 탭 목록에서 고르되, 목록에 없는 새 상호도 입력 가능
-  var nm = colOf_(inv, '거래처 상호'), clName = colOf_(cl, '상호');
-  if (nm && clName) inv.getRange(2, nm, rows, 1).setDataValidation(
+  // 거래처 상호: '상호 · 사업자번호' 목록에서 고르면 사업자번호 기준으로 채웁니다. 새 거래처는 상호를 그대로 입력.
+  var nm = colOf_(inv, '거래처 상호'), clPick = colOf_(cl, '선택 목록');
+  if (nm && clPick) inv.getRange(2, nm, rows, 1).setDataValidation(
     SpreadsheetApp.newDataValidation()
-      .requireValueInRange(cl.getRange(2, clName, Math.max(1, cl.getMaxRows() - 1), 1), true)
+      .requireValueInRange(cl.getRange(2, clPick, Math.max(1, cl.getMaxRows() - 1), 1), true)
       .setAllowInvalid(true)
-      .setHelpText('기존 거래처는 목록에서 고르고, 새 거래처는 상호를 그대로 입력하세요.')
+      .setHelpText('기존 거래처는 목록(상호 · 사업자번호)에서 고르고, 새 거래처는 상호를 그대로 입력하세요.')
       .build());
   var ep = colOf_(cl, '등록 경로');
   if (ep) cl.getRange(2, ep, Math.max(1, cl.getMaxRows() - 1), 1).setDataValidation(
@@ -168,8 +239,14 @@ function testSlack() {
 function onEdit(e) {
   if (!e || !e.range) return;
   var name = e.range.getSheet().getName();
-  if (name === SHEETS.invoice.name) fillInvoiceRows_(e.range.getRow(), e.range.getLastRow());
-  if ([SHEETS.invoice.name, SHEETS.item.name, SHEETS.client.name].indexOf(name) >= 0) refreshAll();
+  if ([SHEETS.invoice.name, SHEETS.item.name, SHEETS.client.name].indexOf(name) < 0) return;
+  bumpCache_();
+  if (name === SHEETS.invoice.name) {
+    fillInvoiceRows_(e.range.getRow(), e.range.getLastRow());
+    refreshInvoiceTypes_(e.range.getRow(), e.range.getLastRow());
+  }
+  if (name === SHEETS.client.name) refreshPickList_();
+  // 거래처 탭의 건수·누적액 같은 전체 집계는 1시간마다(또는 메뉴에서) 따로 돌립니다.
 }
 
 function fillInvoiceRows_(first, last) {
@@ -181,10 +258,12 @@ function fillInvoiceRows_(first, last) {
   var c = function (n) { return h.indexOf(n); };
   if (c('거래처 상호') < 0) return;
 
-  var byName = {};
+  var byName = {}, byBiz = {}, dup = {};
   rowsByHeader_(sheet_('client')).forEach(function (cl) {
-    var n = String(cl['상호'] || '').trim();
-    if (n && digits_(cl['사업자번호'])) byName[n] = cl;
+    var n = String(cl['상호'] || '').trim(), d = digits_(cl['사업자번호']);
+    if (!d) return;
+    byBiz[d] = cl;
+    if (n) { if (byName[n]) dup[n] = true; byName[n] = cl; }
   });
 
   var all = sh.getRange(1, 1, sh.getLastRow(), lastCol).getValues();
@@ -193,10 +272,25 @@ function fillInvoiceRows_(first, last) {
     var nm = String(row[c('거래처 상호')] || '').trim();
     if (!nm) continue;
 
-    var known = byName[nm];
-    if (known) {
-      if (!digits_(row[c('거래처 사업자번호')])) setCell_(sh, r, c('거래처 사업자번호'), fmtBiz_(known['사업자번호']));
-      if (!String(row[c('거래처 대표자')] || '').trim() && known['대표자']) setCell_(sh, r, c('거래처 대표자'), known['대표자']);
+    // 목록에서 '상호 · 123-45-67890'을 골랐으면 사업자번호로 정확히 찾습니다.
+    var pick = nm.match(/^(.*)\s·\s(\d{3}-\d{2}-\d{5})$/);
+    if (pick && byBiz[digits_(pick[2])]) {
+      var kc = byBiz[digits_(pick[2])];
+      // 칸에는 고른 값(상호 · 사업자번호)을 그대로 둡니다. 상호만 남기면 드롭다운 경고 표시가 생겨요.
+      setCell_(sh, r, c('거래처 사업자번호'), fmtBiz_(kc['사업자번호']));
+      setCell_(sh, r, c('거래처 대표자'), kc['대표자'] || '');
+    } else {
+      // 직접 입력한 상호는 같은 이름이 하나뿐일 때만 맞춰 채웁니다.
+      var known = !dup[nm] && byName[nm];
+      if (known) {
+        if (!digits_(row[c('거래처 사업자번호')])) setCell_(sh, r, c('거래처 사업자번호'), fmtBiz_(known['사업자번호']));
+        if (!String(row[c('거래처 대표자')] || '').trim() && known['대표자']) setCell_(sh, r, c('거래처 대표자'), known['대표자']);
+      }
+    }
+
+    // 상태를 입금 완료로 바꾸면 입금일을 오늘로 적습니다.
+    if (c('입금일') >= 0 && row[c('상태')] === '입금 완료' && !row[c('입금일')]) {
+      var t = new Date(); t.setHours(0, 0, 0, 0); setCell_(sh, r, c('입금일'), t);
     }
 
     var issued = row[c('발행일')] instanceof Date ? row[c('발행일')] : null;
@@ -245,6 +339,9 @@ function refreshAll() {
     });
   }
 
+  refreshPickList_();
+  bumpCache_();
+
   // 청구서 탭 구분
   var inv = sheet_('invoice');
   var gc = colOf_(inv, '구분');
@@ -256,12 +353,63 @@ function refreshAll() {
   }
 }
 
+/** 편집한 청구서 행만 구분을 다시 계산합니다 (가벼운 버전). */
+function refreshInvoiceTypes_(first, last) {
+  first = Math.max(2, first);
+  var inv = sheet_('invoice');
+  var gc = colOf_(inv, '구분');
+  if (!gc || last < first) return;
+  var ctx = loadAll_();
+  for (var r = first; r <= last; r++) {
+    var iv = ctx.invoices[r - 2];
+    if (!iv) continue;
+    inv.getRange(r, gc).setValue(String(iv.obj['거래처 상호'] || '').trim() ? invoiceType_(iv, ctx) : '');
+  }
+}
+
+/** 거래처 탭 '선택 목록' 칸(= 상호 · 사업자번호)을 채웁니다. 청구서 탭 드롭다운이 이 칸을 씁니다. */
+function refreshPickList_() {
+  var cl = sheet_('client');
+  var pc = colOf_(cl, '선택 목록'), bc = colOf_(cl, '사업자번호'), nc = colOf_(cl, '상호');
+  var n = cl.getLastRow() - 1;
+  if (!pc || !bc || !nc || n < 1) return;
+  var biz = cl.getRange(2, bc, n, 1).getValues(), names = cl.getRange(2, nc, n, 1).getValues();
+  cl.getRange(2, pc, n, 1).setValues(biz.map(function (b, i) {
+    var d = digits_(b[0]), name = String(names[i][0] || '').trim();
+    return [d.length === 10 && name ? name + ' · ' + fmtBiz_(d) : ''];
+  }));
+}
+
+/* ───────────────────────── 캐시 · 요청 제한 ───────────────────────── */
+
+/** 시트가 바뀌면 캐시 버전을 올려 이전 응답을 버립니다. */
+function bumpCache_() {
+  try { PropertiesService.getScriptProperties().setProperty('CACHE_VER', Date.now() + '-' + Math.random().toString(36).slice(2, 7)); } catch (e) {}
+}
+function cacheVer_() {
+  return PropertiesService.getScriptProperties().getProperty('CACHE_VER') || '0';
+}
+
+/** 같은 링크·같은 동작이 1시간에 정해진 횟수를 넘으면 true */
+function limited_(id, action) {
+  var max = RATE_LIMITS[action];
+  if (!max) return false;
+  var cache = CacheService.getScriptCache();
+  var key = 'rl:' + action + ':' + String(id || '').slice(0, 64);
+  var n = Number(cache.get(key) || 0) + 1;
+  cache.put(key, String(n), 3600);
+  return n > max;
+}
+
 /* ───────────────────────── 웹앱 API ───────────────────────── */
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
   try {
-    if (p.action === 'invoice') return json_(getInvoice_(p.id));
+    if (p.action === 'invoice' || p.action === 'asset') {
+      if (limited_(p.id, p.action)) return json_({ ok: false, error: 'rate_limited' });
+    }
+    if (p.action === 'invoice') return json_(getInvoiceCached_(p.id));
     if (p.action === 'asset') return json_(getAsset_(p.id, p.kind));
     return json_({ ok: false, error: 'unknown_action' });
   } catch (err) {
@@ -274,6 +422,7 @@ function doPost(e) {
   try { body = JSON.parse(e.postData.contents); } catch (err) { return json_({ ok: false, error: 'bad_request' }); }
   var lock = LockService.getScriptLock();
   try {
+    if (limited_(body.id, body.action)) return json_({ ok: false, error: 'rate_limited' });
     lock.waitLock(20000);
     if (body.action === 'inquiry') return json_(postInquiry_(body));
     if (body.action === 'checkBiz') return json_(checkBiz_(body));
@@ -289,6 +438,19 @@ function doPost(e) {
 
 /* ───────────────────────── 동작 ───────────────────────── */
 
+/** 청구서 응답을 몇 분간 캐시합니다. 시트를 고치면 캐시 버전이 바뀌어 바로 새 내용이 나가요. */
+function getInvoiceCached_(id) {
+  id = String(id || '').trim();
+  if (!/^[A-Za-z0-9_-]{16,64}$/.test(id)) return { ok: false, error: 'not_found' };
+  var cache = CacheService.getScriptCache();
+  var key = 'inv:' + cacheVer_() + ':' + id;
+  var hit = cache.get(key);
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  var res = getInvoice_(id);
+  try { var str = JSON.stringify(res); if (str.length < 90000) cache.put(key, str, CACHE_SECONDS); } catch (e) {}
+  return res;
+}
+
 function getInvoice_(id) {
   var ctx = loadAll_();
   var iv = ctx.byId[String(id || '').trim()];
@@ -303,7 +465,12 @@ function getInvoice_(id) {
   var route = cl ? String(cl.obj['등록 경로'] || (registered ? '기존 자료' : '')) : '';
   var type = cl && clientType_(route, s.count) === '기존' ? 'existing' : 'new';
 
-  var history = !iv.biz ? [] : ctx.invoices
+  // 입금 완료 후 HISTORY_DAYS일이 지난 링크에서는 지난 청구 목록을 숨깁니다.
+  var keepDays = Number(prop_('HISTORY_DAYS') || 30);
+  var paidAt = o['입금일'] instanceof Date ? o['입금일'] : null;
+  var archived = o['상태'] === '입금 완료' && paidAt && (Date.now() - paidAt.getTime()) / 864e5 > keepDays;
+
+  var history = (!iv.biz || archived) ? [] : ctx.invoices
     .filter(function (x) { return x.biz === iv.biz && x !== iv && x.obj['상태'] !== '취소' && x.obj['링크ID']; })
     .sort(function (a, b) { return String(fmtDate_(b.obj['발행일'])).localeCompare(String(fmtDate_(a.obj['발행일']))); })
     .slice(0, 6)
@@ -325,7 +492,8 @@ function getInvoice_(id) {
       items: iv.items, supply: iv.supply, discount: iv.discount, vat: iv.vat, total: iv.total
     },
     registered: registered,
-    client: { type: type, count: s.count || 1, history: history }
+    client: { type: type, count: s.count || 1, history: history },
+    archived: !!archived
   };
 }
 
@@ -437,6 +605,7 @@ function postEmail_(b) {
   var d = digits_(row.obj['거래처 사업자번호']);
   if (!d || rowIndexByBiz_(sheet_('client'), d) < 0) return { ok: false, error: 'not_registered' };
   setClientCell_(d, '세금계산서 이메일', email);
+  bumpCache_();
   notifySlack_(':email: *세금계산서 이메일 등록* — ' + row.obj['거래처 상호'] + ' · ' + email);
   return { ok: true };
 }
@@ -462,6 +631,7 @@ function loadAll_() {
   });
 
   var invoices = rowsByHeader_(sheet_('invoice')).map(function (o) {
+    o['거래처 상호'] = nameOnly_(o['거래처 상호']);
     var no = String(o['문서번호'] || '').trim();
     var items = itemsByNo[no] || [];
     if (!items.length && num_(o['금액'])) {
@@ -559,6 +729,7 @@ function findInvoice_(id) {
   for (var r = 1; r < v.length; r++) {
     if (String(v[r][c]) === id) {
       var o = {}; h.forEach(function (k, i) { o[k] = v[r][i]; });
+      o['거래처 상호'] = nameOnly_(o['거래처 상호']);
       return { rowIndex: r + 1, obj: o };
     }
   }
@@ -593,6 +764,8 @@ function validBiz_(d) {
   return (10 - (s % 10)) % 10 === Number(d[9]);
 }
 
+/** '강다짐 · 601-87-00459' → '강다짐' */
+function nameOnly_(v) { return String(v || '').replace(/\s·\s\d{3}-\d{2}-\d{5}$/, '').trim(); }
 function digits_(v) { return String(v || '').replace(/\D/g, ''); }
 function fmtBiz_(d) { d = digits_(d); return d.length === 10 ? d.slice(0, 3) + '-' + d.slice(3, 5) + '-' + d.slice(5) : d; }
 function num_(v) { var n = Number(String(v === '' || v == null ? 0 : v).replace(/[^\d.-]/g, '')); return isNaN(n) ? 0 : n; }
