@@ -16,7 +16,7 @@ var SITE_URL = 'https://tax.plab.life/';
 var TZ = 'Asia/Seoul';
 
 var SHEETS = {
-  invoice: { name: '청구서', headers: ['링크ID', '문서번호', '발행일', '지급기한', '거래처 상호', '거래처 대표자', '거래처 사업자번호', '건명', '할인', '비고', '상태', '링크', '생성일'] },
+  invoice: { name: '청구서', headers: ['링크ID', '문서번호', '발행일', '지급기한', '거래처 상호', '거래처 대표자', '거래처 사업자번호', '건명', '금액', '할인', '비고', '상태', '링크', '생성일'] },
   item:    { name: '품목',   headers: ['문서번호', '품목명', '수량', '단가'] },
   client:  { name: '거래처', headers: ['사업자번호', '상호', '제출일', '사업자등록증', '통장사본', '청구서 문서번호'] },
   inquiry: { name: '문의',   headers: ['일시', '문서번호', '거래처', '내용', '처리'] }
@@ -28,6 +28,7 @@ var ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'imag
 /* ───────────────────────── 메뉴 ───────────────────────── */
 
 function onOpen() {
+  try { ensureHeaders_(); } catch (e) {}
   SpreadsheetApp.getUi().createMenu('PLAB 청구서')
     .addItem('링크 만들기 (ID 없는 행)', 'makeLinks')
     .addSeparator()
@@ -48,6 +49,7 @@ function setup() {
       sh.setFrozenRows(1);
     }
   });
+  ensureHeaders_();
   var inv = ss.getSheetByName(SHEETS.invoice.name);
   if (inv.getLastRow() < 2) {
     var today = new Date();
@@ -55,15 +57,31 @@ function setup() {
     appendByHeader_(inv, {
       '문서번호': 'PLAB-2026-0001', '발행일': today, '지급기한': due,
       '거래처 상호': '예시상회', '거래처 대표자': '홍길동', '거래처 사업자번호': '',
-      '건명': 'AI 상담 챗봇 구축', '할인': 0, '비고': '예시 청구서입니다. 지우고 쓰셔도 돼요.', '상태': '입금 대기'
+      '건명': 'AI 상담 챗봇 구축', '금액': 3000000, '할인': 0, '비고': '예시 청구서입니다. 지우고 쓰셔도 돼요.', '상태': '입금 대기'
     });
-    var it = ss.getSheetByName(SHEETS.item.name);
-    appendByHeader_(it, { '문서번호': 'PLAB-2026-0001', '품목명': 'AI 상담 챗봇 구축', '수량': 1, '단가': 3000000 });
     inv.getRange(2, 3, 1, 2).setNumberFormat('yyyy-mm-dd');
   }
   var st = inv.getRange(2, colOf_(inv, '상태'), inv.getMaxRows() - 1, 1);
   st.setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['입금 대기', '입금 완료', '취소'], true).build());
   makeLinks();
+}
+
+/** 예전에 만든 시트에 새로 생긴 머리글(예: 금액)이 없으면, 정해진 순서 자리에 열을 끼워 넣습니다. */
+function ensureHeaders_() {
+  var ss = SpreadsheetApp.getActive();
+  Object.keys(SHEETS).forEach(function (k) {
+    var def = SHEETS[k], sh = ss.getSheetByName(def.name);
+    if (!sh) return;
+    def.headers.forEach(function (name, i) {
+      var h = sh.getRange(1, 1, 1, Math.max(1, sh.getLastColumn())).getValues()[0];
+      if (h.indexOf(name) >= 0) return;
+      var prev = i > 0 ? h.indexOf(def.headers[i - 1]) : -1;
+      var col;
+      if (prev >= 0) { sh.insertColumnAfter(prev + 1); col = prev + 2; }
+      else { col = sh.getLastColumn() + 1; }
+      sh.getRange(1, col).setValue(name).setFontWeight('bold').setBackground('#EEF1F7');
+    });
+  });
 }
 
 /** 링크ID가 비어 있고 문서번호가 있는 행마다 추측할 수 없는 ID와 링크를 채웁니다. */
@@ -195,6 +213,11 @@ function getInvoice_(id) {
       var q = num_(it['수량']) || 1, pr = num_(it['단가']);
       return { name: String(it['품목명']), qty: q, price: pr, amount: q * pr };
     });
+  // 품목 탭에 줄이 없으면 청구서 탭의 건명·금액을 품목 1개로 씁니다.
+  if (!items.length && num_(o['금액'])) {
+    var amt = num_(o['금액']);
+    items = [{ name: String(o['건명'] || '용역'), qty: 1, price: amt, amount: amt }];
+  }
   var supply = items.reduce(function (s, it) { return s + it.amount; }, 0);
   var discount = num_(o['할인']);
   var vat = Math.round((supply - discount) * 0.1);
