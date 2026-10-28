@@ -24,7 +24,7 @@ var SITE_URL = 'https://tax.plab.life/';
 var TZ = 'Asia/Seoul';
 
 var SHEETS = {
-  invoice: { name: '청구서', headers: ['링크ID', '문서번호', '발행일', '지급기한', '거래처 상호', '구분', '거래처 사업자번호', '거래처 대표자', '건명', '금액', '할인', '비고', '상태', '링크', '생성일'] },
+  invoice: { name: '청구서', headers: ['링크ID', '문서번호', '발행일', '지급기한', '거래처 상호', '구분', '거래처 사업자번호', '거래처 대표자', '건명', '금액', '할인', '비고', '상태', '세금계산서 발행일', '링크', '생성일'] },
   item:    { name: '품목',   headers: ['문서번호', '품목명', '수량', '단가'] },
   client:  { name: '거래처', headers: ['사업자번호', '상호', '사업자명', '대표자', '구분', '등록 경로', '사업자등록증', '통장사본', '첫 거래일', '거래 건수', '최근 청구일', '누적 청구액', '메모', '제출일', '청구서 문서번호'] },
   inquiry: { name: '문의',   headers: ['일시', '문서번호', '거래처', '구분', '내용', '처리'] }
@@ -315,6 +315,7 @@ function getInvoice_(id) {
       title: iv.title,
       memo: String(o['비고'] || ''),
       status: String(o['상태'] || '입금 대기'),
+      taxIssued: fmtDate_(o['세금계산서 발행일']),
       client: { name: String(o['거래처 상호'] || ''), legalName: String((cl && cl.obj['사업자명']) || o['거래처 상호'] || ''), ceo: String(o['거래처 대표자'] || (cl && cl.obj['대표자']) || ''), bizNo: fmtBiz_(iv.biz) },
       items: iv.items, supply: iv.supply, discount: iv.discount, vat: iv.vat, total: iv.total
     },

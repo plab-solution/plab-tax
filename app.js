@@ -98,65 +98,103 @@
   }
 
   function fillCompany() {
+    CO.bankShort = String(CO.bank || '').replace(/은행$/, '');
     $$('[data-co]').forEach(function (el) { el.textContent = CO[el.getAttribute('data-co')] || ''; });
     $$('[data-co-href="tel"]').forEach(function (a) { a.href = 'tel:' + String(CO.phone || '').replace(/\D/g, ''); });
     $$('[data-co-href="mail"]').forEach(function (a) { a.href = 'mailto:' + (CO.email || ''); });
   }
 
+  var STEPS = ['청구서 확인', '입금', '서류 제출', '세금계산서 발행'];
+
   function render() {
     var inv = state.inv;
+    var c = inv.client;
+    var info = [c.name !== (c.legalName || c.name) ? c.name : '', c.ceo ? '대표 ' + c.ceo : '', c.bizNo].filter(Boolean).join(' · ');
     var f = {
       no: inv.no, title: inv.title, memo: inv.memo,
-      clientName: inv.client.name, clientLegal: inv.client.legalName || inv.client.name, clientCeo: inv.client.ceo || '-', clientBiz: inv.client.bizNo || '-',
-      supplyFmt: won(inv.supply), discountFmt: won(inv.discount), vatFmt: won(inv.vat), totalFmt: won(inv.total),
+      clientName: c.name, clientLegal: c.legalName || c.name, clientInfo: info,
+      discountFmt: won(inv.discount), vatFmt: won(inv.vat), totalFmt: won(inv.total),
       totalKo: koNum(inv.total), issuedDot: dotSpaced(inv.issued), dueDot: dotSpaced(inv.due), issuedKo: koDate(inv.issued)
     };
     $$('[data-f]').forEach(function (el) { var k = el.getAttribute('data-f'); el.textContent = f[k] == null ? '' : f[k]; });
     document.title = '청구서 ' + inv.no + ' · ' + (CO.name || '');
 
+    // 단계 상태
     var paid = inv.status === '입금 완료';
-    var pill = $('#status-pill');
-    pill.textContent = paid ? '입금 완료' : '입금 대기';
-    pill.className = 'pill ' + (paid ? 'paid' : 'wait');
+    var docs = state.registered;
+    var tax = !!inv.taxIssued;
+    var done = [true, paid, docs, tax];
+    var cur = done.indexOf(false); // -1 이면 모두 완료
+    renderTracker(done, cur);
+
+    $('#now-pay').hidden = cur !== 1;
+    $('#now-docs').hidden = cur !== 2;
+    $('#now-tax').hidden = cur !== 3;
+    $('#now-done').hidden = cur !== -1;
+    $('#also-docs').hidden = !(cur === 1 && !docs);
+    if (tax) $('#tax-date').textContent = koDate(inv.taxIssued);
+
     var left = daysLeft(inv.due);
-    $('#due-line').textContent = paid ? '입금이 확인됐어요. 감사합니다.'
-      : dot(inv.due) + '까지 입금해주세요' + (left == null ? '' : left > 0 ? ' · D-' + left : left === 0 ? ' · 오늘까지' : ' · 기한이 지났어요');
+    var due = inv.due ? inv.due.split('-') : null;
+    var wd = inv.due ? '일월화수목금토'[new Date(inv.due + 'T00:00:00').getDay()] : '';
+    $('#due-line').textContent = !due ? '' : Number(due[1]) + '월 ' + Number(due[2]) + '일(' + wd + ')까지'
+      + (left == null ? '' : left > 0 ? ' · ' + left + '일 남았어요' : left === 0 ? ' · 오늘까지예요' : ' · 기한이 ' + (-left) + '일 지났어요');
 
-    $('#disc-row').hidden = !inv.discount;
-    $('#memo-box').hidden = !inv.memo;
-    $('#p-memo-wrap').hidden = !inv.memo;
+    // 기존 거래처
+    var existing = state.client.type === 'existing';
+    $('#hello').hidden = !existing;
+    $('#hello-sub').textContent = (state.client.count || 1) > 1 ? '다시 찾아주셔서 감사해요 · ' + state.client.count + '번째 거래' : '늘 함께해주셔서 감사해요';
+    if (existing) {
+      $('#reg-desc').textContent = '세금계산서 발행용 사업자등록증과 통장 사본을 한 번만 보내주세요. 다음 청구부터는 이 단계가 나타나지 않아요.';
+    }
 
+    // 내역
     var lines = $('#item-lines'); lines.innerHTML = '';
     inv.items.forEach(function (it) {
       var r = document.createElement('div'); r.className = 'row';
       var a = document.createElement('span'); a.textContent = it.name + (it.qty > 1 ? ' × ' + it.qty : '');
-      var b = document.createElement('span'); b.textContent = won(it.amount) + '원';
+      var b = document.createElement('span'); b.className = 'num'; b.textContent = won(it.amount);
       r.appendChild(a); r.appendChild(b); lines.appendChild(r);
     });
+    $('#item-count').textContent = inv.items.length + '개 품목';
+    $('#disc-row').hidden = !inv.discount;
+    if (!inv.discount) $('#vat-row').classList.add('dashed'); else $('#vat-row').classList.remove('dashed');
+    $('#memo-box').hidden = !inv.memo;
+    $('#p-memo-wrap').hidden = !inv.memo;
 
+    // 원본 표
     var tb = $('#tbl-body'); tb.innerHTML = '';
-    inv.items.forEach(function (it, i) {
-      tb.appendChild(tr([[i + 1, 'c'], [it.name], [won(it.qty), 'r'], [won(it.price), 'r'], [won(it.amount), 'r']]));
+    inv.items.forEach(function (it) {
+      tb.appendChild(tr([[it.name], [won(it.qty), 'r'], [won(it.price), 'r'], [won(it.amount), 'r']]));
     });
-    tb.appendChild(tr([['공급가액', 'r', 4], [won(inv.supply), 'r']], 'sum'));
-    if (inv.discount) tb.appendChild(tr([['할인', 'r', 4], ['-' + won(inv.discount), 'r']], 'sum'));
-    tb.appendChild(tr([['부가세 (10%)', 'r', 4], [won(inv.vat), 'r']], 'sum'));
-    tb.appendChild(tr([['합계', 'r serif', 4], [won(inv.total), 'r serif']], 'grand'));
+    if (inv.discount) tb.appendChild(tr([['할인', '', 3], ['−' + won(inv.discount), 'r']], 'sub'));
+    tb.appendChild(tr([['공급가액', '', 3], [won(inv.supply - inv.discount), 'r']], 'sub'));
+    tb.appendChild(tr([['부가세 10%', '', 3], [won(inv.vat), 'r']], 'sub'));
+    tb.appendChild(tr([['합계', '', 3], [won(inv.total) + '원', 'r']], 'grand'));
 
-    var existing = state.client.type === 'existing';
-    $('#hello').hidden = !existing;
-    // 사이트 이전부터 거래한 곳은 이 사이트 기준 건수가 1이라 횟수 대신 인사만 보여줍니다.
-    if ((state.client.count || 1) > 1) $('#hello-sub').innerHTML = '프랩과 <span id="visit-n">' + state.client.count + '</span>번째 거래예요';
-    else $('#hello-sub').textContent = '늘 함께해주셔서 감사해요';
-    $('#reg-card').hidden = state.registered;
-    $('#reg-done').hidden = !state.registered || existing;
-    if (existing) {
-      // 오래 거래한 곳인데 서류만 없는 경우
-      $('#reg-title').textContent = '세금계산서용 서류를 한 번만 올려주세요';
-      $('#reg-desc').innerHTML = '다음 청구부터는 다시 요청하지 않아요.<br>사업자등록증·통장사본만 있으면 3분이면 끝나요.';
-      $('#reg-btn').textContent = '서류 올리기';
-    }
     renderHistory();
+  }
+
+  function renderTracker(done, cur) {
+    var ol = $('#tracker'); ol.innerHTML = '';
+    var last = cur === -1 ? STEPS.length - 1 : cur;
+    var fill = document.createElement('span'); fill.className = 'fill';
+    fill.style.width = (last / (STEPS.length - 1) * 75) + '%';
+    ol.appendChild(fill);
+    STEPS.forEach(function (label, i) {
+      var li = document.createElement('li');
+      var isDone = done[i] && i !== cur, isNow = i === cur;
+      li.className = isDone ? 'is-done' : isNow ? 'is-now' : '';
+      if (isNow) li.setAttribute('aria-current', 'step');
+      var dot = document.createElement('span'); dot.className = 'dot';
+      if (isDone) dot.innerHTML = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>';
+      else dot.textContent = i + 1;
+      var lab = document.createElement('span'); lab.className = 'lab'; lab.textContent = label;
+      li.appendChild(dot); li.appendChild(lab);
+      var sr = document.createElement('span'); sr.className = 'sr'; sr.textContent = isDone ? ' 완료' : isNow ? ' 진행 중' : ' 대기';
+      li.appendChild(sr);
+      ol.appendChild(li);
+    });
   }
 
   function renderHistory() {
@@ -167,15 +205,15 @@
     var box = $('#history-list'); box.innerHTML = '';
     list.forEach(function (h) {
       var a = document.createElement('a'); a.className = 'hist'; a.href = '?id=' + encodeURIComponent(h.id) + (DEMO ? '&demo=1&as=existing' : '');
-      var l = document.createElement('span'); l.className = 'stack g4';
-      var meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = h.no + ' · ' + dot(h.issued);
+      var l = document.createElement('span'); l.className = 'stack g2';
+      var meta = document.createElement('span'); meta.className = 'meta num'; meta.textContent = h.no + ' · ' + dot(h.issued);
       var t = document.createElement('span'); t.className = 't'; t.textContent = h.title;
       l.appendChild(meta); l.appendChild(t);
       var r = document.createElement('span'); r.className = 'r';
-      var amt = document.createElement('span'); amt.className = 'amt'; amt.textContent = won(h.total) + '원';
-      var pill = document.createElement('span'); var paid = h.status === '입금 완료';
-      pill.className = 'pill sm ' + (paid ? 'paid' : 'wait'); pill.textContent = paid ? '입금 완료' : '입금 대기';
-      r.appendChild(amt); r.appendChild(pill);
+      var amt = document.createElement('span'); amt.className = 'amt num'; amt.textContent = won(h.total) + '원';
+      var paid = h.status === '입금 완료';
+      var st = document.createElement('span'); st.className = 'st ' + (paid ? 'paid' : 'wait'); st.textContent = paid ? '입금 완료' : '입금 전';
+      r.appendChild(amt); r.appendChild(st);
       a.appendChild(l); a.appendChild(r); box.appendChild(a);
     });
   }
@@ -253,7 +291,7 @@
 
     $('#btn-copy').addEventListener('click', function () {
       var text = (CO.bank || '') + ' ' + (CO.account || '');
-      var done = function () { $('#copy-label').textContent = '복사됨'; toast('계좌번호를 복사했어요'); setTimeout(function () { $('#copy-label').textContent = '복사'; }, 1600); };
+      var done = function () { $('#copy-label').textContent = '복사됨'; toast('계좌번호를 복사했어요'); setTimeout(function () { $('#copy-label').textContent = '계좌 복사'; }, 1600); };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () { legacyCopy(text); done(); });
       else { legacyCopy(text); done(); }
     });
@@ -264,14 +302,22 @@
 
     // 문의
     var ta = $('#ask-text'), send = $('#ask-send');
-    $('#ask-open').addEventListener('click', function () { $('#ask-open').hidden = true; $('#ask-box').hidden = false; ta.focus(); });
-    $('#ask-cancel').addEventListener('click', function () { ta.value = ''; send.disabled = true; $('#ask-box').hidden = true; $('#ask-open').hidden = false; });
+    var toggle = function (btn, body) {
+      btn.addEventListener('click', function () {
+        var open = body.hidden;
+        body.hidden = !open; btn.setAttribute('aria-expanded', String(open));
+        if (open && body === $('#ask-box')) { $('#ask-sent').hidden = true; ta.focus(); }
+      });
+    };
+    toggle($('#plab-docs-open'), $('#plab-docs'));
+    toggle($('#ask-open'), $('#ask-box'));
+    $('#ask-cancel').addEventListener('click', function () { $('#ask-box').hidden = true; $('#ask-open').setAttribute('aria-expanded', 'false'); });
     ta.addEventListener('input', function () { send.disabled = !ta.value.trim(); });
     send.addEventListener('click', function () {
       send.disabled = true; send.textContent = '보내는 중…';
       apiPost({ action: 'inquiry', id: ID, message: ta.value.trim() }).then(function (r) {
         if (!r.ok) throw new Error(r.error);
-        $('#ask-box').hidden = true; $('#ask-sent').hidden = false;
+        ta.value = ''; $('#ask-box').hidden = true; $('#ask-sent').hidden = false; $('#ask-open').setAttribute('aria-expanded', 'false');
       }).catch(function () {
         toast('보내지 못했어요. 잠시 후 다시 시도해주세요.');
         send.disabled = false;
@@ -302,7 +348,7 @@
         show('docs');
       }).catch(function (e) {
         $('#biz-err').textContent = e.message === 'invalid_biz' ? '사업자등록번호가 올바르지 않아요.' : '확인하지 못했어요. 잠시 후 다시 시도해주세요.';
-      }).then(function () { next.textContent = '다음'; step1Ready(); });
+      }).then(function () { next.textContent = '계속'; step1Ready(); });
     });
 
     // 2단계
@@ -319,14 +365,14 @@
           box.classList.add('done');
         }).catch(function (e) {
           delete state.files[kind]; box.classList.remove('done');
-          box.querySelector('.fname').textContent = '사진 촬영 또는 파일 선택';
+          box.querySelector('.fname').textContent = '눌러서 촬영하거나 파일 고르기';
           $('#docs-err').textContent = e.message === 'size' ? '10MB 이하 파일만 올릴 수 있어요.' : '파일을 읽지 못했어요. 다른 파일로 시도해주세요.';
         }).then(updateSubmit);
       });
     });
     var sub = $('#docs-submit');
     sub.addEventListener('click', function () {
-      sub.disabled = true; sub.textContent = '올리는 중…';
+      sub.disabled = true; sub.textContent = '보내는 중…';
       apiPost({ action: 'register', id: ID, bizNo: state.biz, ceo: state.ceo, files: [state.files.biz, state.files.bank] }).then(function (r) {
         if (!r.ok) throw new Error(r.error);
         finish(false);
@@ -334,7 +380,7 @@
         var m = { bad_type: '이미지나 PDF 파일만 올릴 수 있어요.', bad_size: '10MB 이하 파일만 올릴 수 있어요.' }[e.message];
         $('#docs-err').textContent = m || '제출하지 못했어요. 잠시 후 다시 시도해주세요.';
         updateSubmit();
-      }).then(function () { sub.textContent = '제출하기'; });
+      }).then(function () { sub.textContent = '보내기'; });
     });
   }
   function updateSubmit() { $('#docs-submit').disabled = !(state.files.biz && state.files.bank); }
@@ -343,7 +389,7 @@
     if (!state.inv.client.bizNo) state.inv.client.bizNo = fmtBiz(state.biz);
     if (!state.inv.client.ceo && state.ceo) state.inv.client.ceo = state.ceo;
     $('#done-biz').textContent = fmtBiz(state.biz);
-    $('#done-title').textContent = already ? '이미 등록된 사업자예요' : state.client.type === 'existing' ? '서류를 잘 받았어요' : '등록이 완료됐어요';
+    $('#done-title').textContent = already ? '이미 등록된 사업자예요' : '서류를 받았어요';
     render(); show('done');
   }
   function legacyCopy(text) {
@@ -366,7 +412,7 @@
               { id: 'demo-0008-aaaaaaaaaaaa', no: 'PLAB-2026-0008', title: '월 유지관리 (8월)', issued: '2026-08-29', total: 330000, status: '입금 완료' }
             ] } : { type: 'new', count: 1, history: [] },
             invoice: {
-            no: 'PLAB-2026-0012', issued: today, due: due, title: 'AI 상담 챗봇 구축', status: '입금 대기',
+            no: 'PLAB-2026-0012', issued: today, due: due, title: 'AI 상담 챗봇 구축', status: params.get('paid') ? '입금 완료' : '입금 대기', taxIssued: params.get('tax') ? today : '',
             memo: '1차 구축분 청구서입니다. 세금계산서는 입금 확인 후 발행됩니다.',
             client: { name: '한결푸드', ceo: ex ? '홍길동' : '', bizNo: ex ? '155-81-02082' : '' },
             items: [{ name: 'AI 상담 챗봇 구축', qty: 1, price: 3000000, amount: 3000000 }, { name: '월 유지관리 (11월)', qty: 1, price: 300000, amount: 300000 }],
