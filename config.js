@@ -2,7 +2,7 @@
 // API_URL: Apps Script 웹앱 배포 후 받은 URL(…/exec)을 넣으세요.
 //          비워두거나 주소 끝에 ?demo=1 을 붙이면 예시 데이터로 화면만 확인할 수 있어요.
 window.PLAB_CONFIG = {
-  API_URL: '',
+  API_URL: 'https://script.google.com/macros/s/AKfycbxTJl0HHpjdYBjc9ODL3vEXSVcrpqP1yvvN_8iJpp9DVET4TeDfe15GWGpCscjcLQAyOQ/exec',
 
   company: {
     name: '주식회사 프랩',
