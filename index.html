@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>청구서 · 주식회사 프랩</title>
+<meta property="og:title" content="주식회사 프랩 청구서">
+<meta property="og:description" content="청구서를 확인하고 입금 계좌를 확인하세요.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="page">
+
+  <!-- 불러오는 중 / 오류 -->
+  <section id="v-loading" class="state">
+    <div class="spinner" aria-hidden="true"></div>
+    <span class="lbl">청구서를 불러오고 있어요</span>
+  </section>
+  <section id="v-error" class="state" hidden>
+    <div class="logo">PLAB</div>
+    <h1 style="margin:8px 0 0;font-size:20px" id="err-title">청구서를 찾을 수 없어요</h1>
+    <p class="lbl" id="err-desc" style="margin:0;line-height:1.6">링크가 정확한지 확인해주세요.<br>문의: <span data-co="phone"></span> · <span data-co="email"></span></p>
+  </section>
+
+  <!-- 청구서 요약 -->
+  <section id="v-home" class="col" hidden>
+    <div class="brand">
+      <div class="logo" aria-hidden="true">PLAB</div>
+      <div><b data-co="name"></b><small>청구서 · <span data-f="no"></span></small></div>
+    </div>
+
+    <div class="card stack g18">
+      <div class="row top">
+        <div class="stack g4">
+          <span class="lbl"><span data-f="clientName"></span> 귀하</span>
+          <span class="title" data-f="title"></span>
+        </div>
+        <span class="pill wait" id="status-pill">입금 대기</span>
+      </div>
+      <div class="stack g6">
+        <span class="amount"><span data-f="totalFmt"></span>원</span>
+        <span class="lbl" id="due-line"></span>
+      </div>
+      <div class="divider stack g10 lines" id="item-lines"></div>
+      <div class="divider stack g8 sums">
+        <div class="row"><span>공급가액</span><span><span data-f="supplyFmt"></span>원</span></div>
+        <div class="row" id="disc-row"><span>할인</span><span>-<span data-f="discountFmt"></span>원</span></div>
+        <div class="row"><span>부가세 (10%)</span><span><span data-f="vatFmt"></span>원</span></div>
+        <div class="row total"><span>합계</span><span><span data-f="totalFmt"></span>원</span></div>
+      </div>
+      <div class="memo" id="memo-box" data-f="memo"></div>
+    </div>
+
+    <button type="button" class="card cardbtn" data-go="invoice">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg>
+      정식 청구서 보기 · PDF 저장
+    </button>
+
+    <div class="card stack g16">
+      <div class="row">
+        <div class="stack g4">
+          <span class="lbl">입금 계좌</span>
+          <span style="font-size:17px;font-weight:700"><span data-co="bank"></span> <span class="nowrap" data-co="account"></span></span>
+          <span class="small">예금주 <span data-co="holder"></span></span>
+        </div>
+        <button type="button" class="copy" id="btn-copy">
+          <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          <span id="copy-label">복사</span>
+        </button>
+      </div>
+      <div class="divider stack g10" style="padding-top:14px">
+        <span class="small"><b style="color:var(--ink)">프랩 서류 받기</b> — 거래처 등록에 필요하시면 받아가세요</span>
+        <div class="grid2">
+          <button type="button" class="ghost" data-asset="biz">사업자등록증</button>
+          <button type="button" class="ghost" data-asset="bank">통장사본</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card stack g16 center" id="reg-card">
+      <div class="stack g6">
+        <span style="font-size:17px;font-weight:700">프랩과 첫 거래네요, 반가워요!</span>
+        <span class="lbl" style="line-height:1.6">세금계산서 발행을 위해 기초 정보를 등록해주세요.<br>사업자등록증·통장사본만 있으면 3분이면 끝나요.</span>
+      </div>
+      <button type="button" class="primary" data-go="biz">기초 정보 등록하기</button>
+    </div>
+    <div class="card row" id="reg-done" style="justify-content:flex-start;font-size:14px" hidden>
+      <span class="check"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>
+      <span>기초 정보가 등록돼 있어요. 세금계산서는 입금 확인 후 발행할게요.</span>
+    </div>
+
+    <button type="button" class="card cardbtn" id="ask-open">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
+      문의하기
+    </button>
+    <div class="card stack g12" id="ask-box" hidden>
+      <label for="ask-text" style="font-size:15px;font-weight:700">문의하기</label>
+      <textarea id="ask-text" maxlength="2000" placeholder="예: 세금계산서는 다음 달 초에 발행 부탁드려요"></textarea>
+      <div class="grid2">
+        <button type="button" class="outline" id="ask-cancel">취소</button>
+        <button type="button" class="btn-sm" id="ask-send" disabled>보내기</button>
+      </div>
+    </div>
+    <div class="card center" id="ask-sent" style="font-size:14px;color:#3C4659" hidden>문의가 프랩 담당자에게 전달됐어요. 곧 연락드릴게요.</div>
+
+    <div class="foot">
+      <span data-co="name"></span> · <a data-co-href="tel" href="#"><span data-co="phone"></span></a> · <a data-co-href="mail" href="#"><span data-co="email"></span></a>
+    </div>
+  </section>
+
+  <!-- 정식 청구서 -->
+  <section id="v-invoice" class="wide" hidden>
+    <div class="bar noprint">
+      <button type="button" class="linkbtn" data-go="home"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>돌아가기</button>
+      <button type="button" class="dark" id="btn-print"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M8 14h8v7H8z"/></svg>인쇄 · PDF 저장</button>
+    </div>
+    <article class="paper">
+      <div class="p-title"><span class="serif">청구서</span><span class="plbl" style="letter-spacing:.4em">INVOICE</span></div>
+      <div class="p-meta">
+        <span><span class="plbl">문서번호</span> <span data-f="no"></span></span>
+        <span><span class="plbl">발행일</span> <span data-f="issuedDot"></span></span>
+        <span><span class="plbl">지급기한</span> <span data-f="dueDot"></span></span>
+        <span class="serif to"><span data-f="clientName"></span> 귀중</span>
+      </div>
+      <div class="parties">
+        <div>
+          <span class="serif" style="font-weight:700">공급자</span>
+          <div class="kv">
+            <span class="plbl">상호</span><span data-co="name"></span>
+            <span class="plbl">대표자</span><span data-co="ceo"></span>
+            <span class="plbl">등록번호</span><span data-co="bizNo"></span>
+            <span class="plbl">소재지</span><span data-co="address"></span>
+            <span class="plbl">연락처</span><span data-co="phone"></span>
+          </div>
+        </div>
+        <div>
+          <span class="serif" style="font-weight:700">공급받는자</span>
+          <div class="kv">
+            <span class="plbl">상호</span><span data-f="clientName"></span>
+            <span class="plbl">대표자</span><span data-f="clientCeo"></span>
+            <span class="plbl">등록번호</span><span data-f="clientBiz"></span>
+            <span class="plbl">건명</span><span data-f="title"></span>
+          </div>
+        </div>
+      </div>
+      <div class="p-amount">
+        <span class="serif">청구금액 <b>일금 <span data-f="totalKo"></span> 원정</b></span>
+        <span class="serif big">₩<span data-f="totalFmt"></span> <span style="font-size:11px;font-weight:400;color:var(--paper-muted)">(VAT 포함)</span></span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th style="width:36px">NO</th><th>품목 및 내용</th><th>수량</th><th>단가</th><th>금액</th></tr></thead>
+          <tbody id="tbl-body"></tbody>
+        </table>
+      </div>
+      <div class="p-note"><span class="serif" style="font-weight:700">입금 계좌</span>  <span data-co="bank"></span> <span data-co="account"></span> (예금주 <span data-co="holder"></span>)<span id="p-memo-wrap"><br><span class="serif" style="font-weight:700">비고</span>  <span data-f="memo"></span></span></div>
+      <div class="p-sign serif">위와 같이 청구합니다.<br><br><span data-f="issuedKo"></span><br>
+        <span class="who"><b><span data-co="name"></span>  대표이사 <span data-co="ceo"></span></b><img class="seal" id="seal" alt="직인" hidden></span>
+      </div>
+    </article>
+    <span class="noprint lbl center">[인쇄 · PDF 저장]을 누른 뒤 대상에서 'PDF로 저장'을 고르면 파일로 받을 수 있어요.</span>
+  </section>
+
+  <!-- 1단계: 사업자등록번호 -->
+  <section id="v-biz" class="step" hidden>
+    <button type="button" class="back" data-go="home" aria-label="뒤로"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+    <div class="stack g8">
+      <span class="stepno">1 / 2</span>
+      <h1>사업자등록번호를<br>입력해주세요</h1>
+      <span class="lbl">한 번 제출하면 다음 거래부터는 다시 입력하지 않아도 돼요.</span>
+    </div>
+    <div class="stack g8">
+      <label for="biz-input" class="lbl">사업자등록번호</label>
+      <input id="biz-input" class="field" type="text" inputmode="numeric" autocomplete="off" placeholder="000-00-00000">
+      <span class="err" id="biz-err" role="alert"></span>
+    </div>
+    <div class="grow"></div>
+    <button type="button" class="primary" id="biz-next" disabled>다음</button>
+  </section>
+
+  <!-- 2단계: 서류 -->
+  <section id="v-docs" class="step" hidden>
+    <button type="button" class="back" data-go="biz" aria-label="뒤로"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+    <div class="stack g8">
+      <span class="stepno">2 / 2</span>
+      <h1>서류를<br>올려주세요</h1>
+      <span class="lbl">사진을 찍거나 파일(이미지·PDF, 10MB 이하)을 선택하면 돼요.</span>
+    </div>
+    <div class="stack g10">
+      <label class="upload" id="up-biz">
+        <span class="stack g4"><b>사업자등록증</b><span class="fname">사진 촬영 또는 파일 선택</span></span>
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5A6478" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        <input class="sr" type="file" accept="image/*,application/pdf" data-kind="biz">
+      </label>
+      <label class="upload" id="up-bank">
+        <span class="stack g4"><b>통장사본</b><span class="fname">사진 촬영 또는 파일 선택</span></span>
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5A6478" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        <input class="sr" type="file" accept="image/*,application/pdf" data-kind="bank">
+      </label>
+      <span class="err" id="docs-err" role="alert"></span>
+    </div>
+    <div class="grow"></div>
+    <button type="button" class="primary" id="docs-submit" disabled>제출하기</button>
+  </section>
+
+  <!-- 완료 -->
+  <section id="v-done" class="step" style="align-items:center;justify-content:center;text-align:center;gap:16px" hidden>
+    <span class="done-ico"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>
+    <h1 style="font-size:22px" id="done-title">등록이 완료됐어요</h1>
+    <span class="lbl" style="line-height:1.6">사업자번호 <span id="done-biz"></span><br>서류 확인 후 세금계산서를 발행해드릴게요.</span>
+    <button type="button" class="primary" data-go="home" style="margin-top:24px">청구서로 돌아가기</button>
+  </section>
+
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
