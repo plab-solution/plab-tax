@@ -7,7 +7,7 @@
   var ID = (params.get('id') || '').trim();
   var DEMO = !CFG.API_URL || params.get('demo') === '1';
 
-  var state = { inv: null, registered: false, client: { type: 'new', count: 1, history: [] }, biz: '', ceo: '', files: {}, seal: null };
+  var state = { inv: null, registered: false, client: { type: 'new', count: 1, history: [] }, biz: '', ceo: '', email: '', files: {}, seal: null };
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
@@ -39,6 +39,7 @@
     if (d.length > 3) return d.slice(0, 3) + '-' + d.slice(3);
     return d;
   }
+  function validEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v || '').trim()); }
   function validBiz(d) {
     if (!/^\d{10}$/.test(d)) return false;
     var w = [1, 3, 7, 1, 3, 7, 1, 3, 5], s = 0;
@@ -83,7 +84,8 @@
       var c = state.inv && state.inv.client;
       if (c && c.bizNo && !$('#biz-input').value) { $('#biz-input').value = c.bizNo; state.biz = c.bizNo.replace(/\D/g, ''); }
       if (c && c.ceo && !$('#ceo-input').value) { $('#ceo-input').value = c.ceo; state.ceo = c.ceo; }
-      $('#biz-next').disabled = !(state.biz.length === 10 && state.ceo.length >= 2);
+      if (c && c.taxEmail && !$('#email-input').value) { $('#email-input').value = c.taxEmail; state.email = c.taxEmail; }
+      $('#biz-next').disabled = !(state.biz.length === 10 && state.ceo.length >= 2 && validEmail(state.email));
       setTimeout(function () { $('#biz-input').focus(); }, 50);
     }
   }
@@ -132,6 +134,10 @@
     $('#now-tax').hidden = cur !== 3;
     $('#now-done').hidden = cur !== -1;
     $('#also-docs').hidden = !(cur === 1 && !docs);
+    var mail = c.taxEmail || '';
+    $('#email-card').hidden = !(docs && !mail);
+    $('#email-done').hidden = !(docs && mail);
+    $('#email-show').textContent = mail;
     if (tax) $('#tax-date').textContent = koDate(inv.taxIssued);
 
     var left = daysLeft(inv.due);
@@ -329,7 +335,7 @@
 
     // 1단계
     var bi = $('#biz-input'), ci = $('#ceo-input'), next = $('#biz-next');
-    var step1Ready = function () { next.disabled = !(state.biz.length === 10 && state.ceo.length >= 2); };
+    var step1Ready = function () { next.disabled = !(state.biz.length === 10 && state.ceo.length >= 2 && validEmail(state.email)); };
     bi.addEventListener('input', function () {
       bi.value = fmtBiz(bi.value);
       state.biz = bi.value.replace(/\D/g, '');
@@ -337,6 +343,9 @@
       step1Ready();
     });
     ci.addEventListener('input', function () { state.ceo = ci.value.trim(); step1Ready(); });
+    var ei = $('#email-input');
+    ei.addEventListener('input', function () { state.email = ei.value.trim(); step1Ready(); });
+    ei.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !next.disabled) next.click(); });
     ci.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !next.disabled) next.click(); });
     bi.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !next.disabled) next.click(); });
     next.addEventListener('click', function () {
@@ -346,7 +355,7 @@
         if (!r.ok) throw new Error(r.error);
         if (r.registered) {
           // 이미 서류가 있는 거래처 → 이 청구서에 연결만
-          return apiPost({ action: 'register', id: ID, bizNo: state.biz, ceo: state.ceo }).then(function () { finish(true); });
+          return apiPost({ action: 'register', id: ID, bizNo: state.biz, ceo: state.ceo, email: state.email }).then(function () { finish(true); });
         }
         show('docs');
       }).catch(function (e) {
@@ -376,14 +385,30 @@
     var sub = $('#docs-submit');
     sub.addEventListener('click', function () {
       sub.disabled = true; sub.textContent = '보내는 중…';
-      apiPost({ action: 'register', id: ID, bizNo: state.biz, ceo: state.ceo, files: [state.files.biz, state.files.bank] }).then(function (r) {
+      apiPost({ action: 'register', id: ID, bizNo: state.biz, ceo: state.ceo, email: state.email, files: [state.files.biz, state.files.bank] }).then(function (r) {
         if (!r.ok) throw new Error(r.error);
         finish(false);
       }).catch(function (e) {
-        var m = { bad_type: '이미지나 PDF 파일만 올릴 수 있어요.', bad_size: '10MB 이하 파일만 올릴 수 있어요.' }[e.message];
+        var m = { bad_type: '이미지나 PDF 파일만 올릴 수 있어요.', bad_size: '10MB 이하 파일만 올릴 수 있어요.', invalid_email: '이메일 주소를 다시 확인해주세요.' }[e.message];
         $('#docs-err').textContent = m || '제출하지 못했어요. 잠시 후 다시 시도해주세요.';
         updateSubmit();
       }).then(function () { sub.textContent = '보내기'; });
+    });
+  }
+  function bindEmailOnly() {
+    var inp = $('#email-only'), btn = $('#email-save');
+    inp.addEventListener('input', function () { $('#email-err').textContent = ''; btn.disabled = !validEmail(inp.value); });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !btn.disabled) btn.click(); });
+    btn.addEventListener('click', function () {
+      var v = inp.value.trim();
+      btn.disabled = true; btn.textContent = '저장 중…';
+      apiPost({ action: 'setEmail', id: ID, email: v }).then(function (r) {
+        if (!r.ok) throw new Error(r.error);
+        state.inv.client.taxEmail = v; render(); toast('세금계산서 이메일을 저장했어요');
+      }).catch(function (e) {
+        $('#email-err').textContent = e.message === 'invalid_email' ? '이메일 주소를 다시 확인해주세요.' : '저장하지 못했어요. 잠시 후 다시 시도해주세요.';
+        btn.disabled = false;
+      }).then(function () { btn.textContent = '저장'; });
     });
   }
   function updateSubmit() { $('#docs-submit').disabled = !(state.files.biz && state.files.bank); }
@@ -391,6 +416,8 @@
     state.registered = true;
     if (!state.inv.client.bizNo) state.inv.client.bizNo = fmtBiz(state.biz);
     if (!state.inv.client.ceo && state.ceo) state.inv.client.ceo = state.ceo;
+    if (!state.inv.client.taxEmail && state.email) state.inv.client.taxEmail = state.email;
+    $('#done-email').textContent = state.inv.client.taxEmail || state.email;
     $('#done-biz').textContent = fmtBiz(state.biz);
     $('#done-title').textContent = already ? '이미 등록된 사업자예요' : '서류를 받았어요';
     render(); show('done');
@@ -432,6 +459,7 @@
 
   fillCompany();
   bind();
+  bindEmailOnly();
   if (!ID && !DEMO) { fail('청구서 링크가 필요해요', '받으신 청구서 링크로 다시 접속해주세요.'); return; }
   apiGet({ action: 'invoice', id: ID }).then(function (r) {
     if (!r.ok) {

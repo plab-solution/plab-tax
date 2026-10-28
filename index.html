@@ -78,6 +78,21 @@
       <p class="lead">세금계산서가 <b id="tax-date"></b>에 발행됐어요. 홈택스에서 확인하실 수 있어요. 함께해주셔서 감사합니다.</p>
     </section>
 
+    <!-- 서류는 있는데 세금계산서 이메일이 없을 때 -->
+    <section class="mail-card" id="email-card" hidden>
+      <div class="stack g4">
+        <b>세금계산서 받을 이메일을 알려주세요</b>
+        <span class="muted small">전자세금계산서가 이 주소로 발송돼요. 한 번만 남기시면 돼요.</span>
+      </div>
+      <div class="mail-row">
+        <label for="email-only" class="sr">세금계산서 받을 이메일</label>
+        <input id="email-only" class="field sm" type="email" inputmode="email" autocomplete="email" maxlength="120" placeholder="tax@company.co.kr">
+        <button type="button" class="btn-green" id="email-save" disabled>저장</button>
+      </div>
+      <span class="err" id="email-err" role="alert"></span>
+    </section>
+    <div class="mail-done muted small" id="email-done" hidden>세금계산서 받을 이메일 · <b id="email-show"></b></div>
+
     <!-- 입금이 먼저인데 서류도 아직일 때 -->
     <button type="button" class="also" id="also-docs" data-go="biz" hidden>
       <span class="stack g2"><b>서류도 미리 보내주세요</b><span class="muted small">사업자등록증 · 통장 사본, 한 번이면 돼요</span></span>
@@ -215,6 +230,11 @@
       <label for="ceo-input" class="label">대표자 이름</label>
       <input id="ceo-input" class="field" type="text" autocomplete="name" maxlength="40" placeholder="홍길동">
     </div>
+    <div class="stack g8">
+      <label for="email-input" class="label">세금계산서 받을 이메일</label>
+      <input id="email-input" class="field" type="email" inputmode="email" autocomplete="email" maxlength="120" placeholder="tax@company.co.kr">
+      <span class="muted small">전자세금계산서가 이 주소로 발송돼요. 경리 담당자 메일이면 좋아요.</span>
+    </div>
     <button type="button" class="btn-dark big" id="biz-next" disabled>계속</button>
   </section>
 
@@ -249,7 +269,7 @@
   <section id="v-done" class="col done" hidden>
     <span class="done-ico" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>
     <h1 id="done-title">서류를 받았어요</h1>
-    <p class="muted">사업자번호 <span class="num" id="done-biz"></span><br>확인 후 세금계산서 발행 단계로 넘어가요.</p>
+    <p class="muted">사업자번호 <span class="num" id="done-biz"></span><br>세금계산서 받을 이메일 <span id="done-email"></span><br>확인 후 세금계산서 발행 단계로 넘어가요.</p>
     <button type="button" class="btn-dark big" data-go="home">진행 상황 보기</button>
   </section>
 

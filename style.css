@@ -92,6 +92,15 @@ h1{margin:0;font-size:26px;line-height:1.35;font-weight:700;letter-spacing:-.01e
 textarea{width:100%;min-height:100px;padding:12px 14px;border:1px solid var(--line2);border-radius:10px;font:inherit;font-size:14px;color:var(--ink);resize:vertical}
 textarea:focus,.field:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-soft)}
 
+/* 세금계산서 이메일 */
+.mail-card{display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:14px;background:#FFF8EC;border:1px solid #F3DDB3;margin-top:-12px}
+.mail-card b{font-size:15px}
+.mail-row{display:flex;gap:8px}
+.mail-row .field{flex:1;min-width:0}
+.field.sm{min-height:46px;font-size:15px;padding:0 12px}
+.mail-done{margin-top:-16px;padding:0 4px}
+.mail-done b{color:var(--ink);font-weight:600}
+
 /* 자주 쓰는 기능 */
 .tools{display:flex;flex-direction:column;gap:10px}
 .tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}

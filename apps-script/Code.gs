@@ -26,7 +26,7 @@ var TZ = 'Asia/Seoul';
 var SHEETS = {
   invoice: { name: '청구서', headers: ['링크ID', '문서번호', '발행일', '지급기한', '거래처 상호', '구분', '거래처 사업자번호', '거래처 대표자', '건명', '금액', '할인', '비고', '상태', '세금계산서 발행일', '링크', '생성일'] },
   item:    { name: '품목',   headers: ['문서번호', '품목명', '수량', '단가'] },
-  client:  { name: '거래처', headers: ['사업자번호', '상호', '사업자명', '대표자', '구분', '등록 경로', '사업자등록증', '통장사본', '첫 거래일', '거래 건수', '최근 청구일', '누적 청구액', '메모', '제출일', '청구서 문서번호'] },
+  client:  { name: '거래처', headers: ['사업자번호', '상호', '사업자명', '대표자', '세금계산서 이메일', '구분', '등록 경로', '사업자등록증', '통장사본', '첫 거래일', '거래 건수', '최근 청구일', '누적 청구액', '메모', '제출일', '청구서 문서번호'] },
   inquiry: { name: '문의',   headers: ['일시', '문서번호', '거래처', '구분', '내용', '처리'] }
 };
 // 스크립트가 채우는 칸(파란색으로 표시)
@@ -278,6 +278,7 @@ function doPost(e) {
     if (body.action === 'inquiry') return json_(postInquiry_(body));
     if (body.action === 'checkBiz') return json_(checkBiz_(body));
     if (body.action === 'register') return json_(postRegister_(body));
+    if (body.action === 'setEmail') return json_(postEmail_(body));
     return json_({ ok: false, error: 'unknown_action' });
   } catch (err) {
     return json_({ ok: false, error: String(err.message || err) });
@@ -320,7 +321,7 @@ function getInvoice_(id) {
       memo: String(o['비고'] || ''),
       status: String(o['상태'] || '입금 대기'),
       taxIssued: fmtDate_(o['세금계산서 발행일']),
-      client: { name: String(o['거래처 상호'] || ''), legalName: String((cl && cl.obj['사업자명']) || o['거래처 상호'] || ''), ceo: String(o['거래처 대표자'] || (cl && cl.obj['대표자']) || ''), bizNo: fmtBiz_(iv.biz) },
+      client: { name: String(o['거래처 상호'] || ''), legalName: String((cl && cl.obj['사업자명']) || o['거래처 상호'] || ''), ceo: String(o['거래처 대표자'] || (cl && cl.obj['대표자']) || ''), bizNo: fmtBiz_(iv.biz), taxEmail: String((cl && cl.obj['세금계산서 이메일']) || '') },
       items: iv.items, supply: iv.supply, discount: iv.discount, vat: iv.vat, total: iv.total
     },
     registered: registered,
@@ -364,6 +365,8 @@ function postRegister_(b) {
   var d = digits_(b.bizNo);
   if (!validBiz_(d)) return { ok: false, error: 'invalid_biz' };
   var ceo = String(b.ceo || '').trim().slice(0, 40);
+  var email = String(b.email || '').trim().slice(0, 120);
+  if (email && !validEmail_(email)) return { ok: false, error: 'invalid_email' };
   var o = row.obj;
   var inv = sheet_('invoice');
   var linkInvoice = function (ceoName) {
@@ -375,6 +378,7 @@ function postRegister_(b) {
   var existing = rowsByHeader_(sheet_('client')).filter(function (c) { return digits_(c['사업자번호']) === d; })[0];
   if (existing && existing['사업자등록증'] && existing['통장사본']) {
     linkInvoice(existing['대표자'] || ceo);
+    if (email && !existing['세금계산서 이메일']) setClientCell_(d, '세금계산서 이메일', email);
     refreshAll();
     return { ok: true, already: true };
   }
@@ -408,9 +412,10 @@ function postRegister_(b) {
     var put = function (n, v) { var col = colOf_(cl, n); if (col && v !== '' && v != null) cl.getRange(rIdx, col).setValue(v); };
     put('사업자등록증', urls.biz); put('통장사본', urls.bank); put('제출일', new Date());
     if (!existing['등록 경로']) put('등록 경로', '사이트 제출'); if (!existing['대표자']) put('대표자', ceo); if (!existing['상호']) put('상호', o['거래처 상호']);
+    if (email) put('세금계산서 이메일', email);
   } else {
     appendByHeader_(cl, {
-      '사업자번호': fmtBiz_(d), '상호': o['거래처 상호'], '대표자': ceo, '등록 경로': '사이트 제출',
+      '사업자번호': fmtBiz_(d), '상호': o['거래처 상호'], '대표자': ceo, '세금계산서 이메일': email, '등록 경로': '사이트 제출',
       '사업자등록증': urls.biz, '통장사본': urls.bank, '제출일': new Date(), '청구서 문서번호': o['문서번호']
     });
   }
@@ -418,10 +423,31 @@ function postRegister_(b) {
   refreshAll();
 
   var wasExisting = existing && clientType_(String(existing['등록 경로'] || ''), (loadAll_().stats[d] || { count: 1 }).count) === '기존';
-  notifySlack_((wasExisting ? ':page_facing_up: *[기존] 거래처 서류 제출* — ' : ':new: *신규 거래처 서류 제출* — ') + o['거래처 상호'] + (ceo ? ' (대표 ' + ceo + ')' : '') + ' · ' + fmtBiz_(d) + '\n'
+  notifySlack_((wasExisting ? ':page_facing_up: *[기존] 거래처 서류 제출* — ' : ':new: *신규 거래처 서류 제출* — ') + o['거래처 상호'] + (ceo ? ' (대표 ' + ceo + ')' : '') + ' · ' + fmtBiz_(d) + (email ? ' · ' + email : '') + '\n'
     + '청구서 ' + o['문서번호'] + ' · <' + folder.getUrl() + '|서류 폴더 열기>');
   return { ok: true };
 }
+
+/** 서류는 이미 있는데 세금계산서 이메일만 없는 거래처가 이메일을 남깁니다. */
+function postEmail_(b) {
+  var row = findInvoice_(b.id);
+  if (!row) return { ok: false, error: 'not_found' };
+  var email = String(b.email || '').trim().slice(0, 120);
+  if (!validEmail_(email)) return { ok: false, error: 'invalid_email' };
+  var d = digits_(row.obj['거래처 사업자번호']);
+  if (!d || rowIndexByBiz_(sheet_('client'), d) < 0) return { ok: false, error: 'not_registered' };
+  setClientCell_(d, '세금계산서 이메일', email);
+  notifySlack_(':email: *세금계산서 이메일 등록* — ' + row.obj['거래처 상호'] + ' · ' + email);
+  return { ok: true };
+}
+
+function setClientCell_(d, header, value) {
+  var cl = sheet_('client');
+  var r = rowIndexByBiz_(cl, d), c = colOf_(cl, header);
+  if (r > 0 && c > 0) cl.getRange(r, c).setValue(value);
+}
+
+function validEmail_(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v || '')); }
 
 /* ───────────────────────── 계산 ───────────────────────── */
 
