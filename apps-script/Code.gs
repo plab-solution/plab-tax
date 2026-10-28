@@ -85,6 +85,67 @@ function makeLinks() {
   try { SpreadsheetApp.getActive().toast(made ? made + '건의 링크를 만들었어요.' : '새로 만들 링크가 없어요.'); } catch (e) {}
 }
 
+/**
+ * 청구서 탭에서 거래처 상호를 적으면 자동으로 채웁니다. (단순 트리거 — 따로 설치할 필요 없음)
+ *   문서번호(PLAB-연도-순번) · 발행일(오늘) · 지급기한(발행일+7일) · 상태(입금 대기) · 링크ID · 링크 · 생성일
+ * 이미 값이 있는 칸은 건드리지 않습니다.
+ */
+function onEdit(e) {
+  if (!e || !e.range) return;
+  var sh = e.range.getSheet();
+  if (sh.getName() !== SHEETS.invoice.name) return;
+  var first = Math.max(2, e.range.getRow()), last = e.range.getLastRow();
+  if (last < 2) return;
+
+  var lastCol = sh.getLastColumn();
+  var h = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+  var c = function (name) { return h.indexOf(name); };
+  if (c('거래처 상호') < 0 || c('문서번호') < 0) return;
+
+  var all = sh.getRange(1, 1, sh.getLastRow(), lastCol).getValues();
+  for (var r = first; r <= last; r++) {
+    var row = all[r - 1];
+    if (!String(row[c('거래처 상호')]).trim()) continue;
+
+    var issued = row[c('발행일')] instanceof Date ? row[c('발행일')] : null;
+    if (!issued) {
+      issued = new Date(); issued.setHours(0, 0, 0, 0);
+      setCell_(sh, r, c('발행일'), issued, 'yyyy-mm-dd');
+    }
+    if (!row[c('지급기한')]) setCell_(sh, r, c('지급기한'), new Date(issued.getTime() + 7 * 864e5), 'yyyy-mm-dd');
+    if (!row[c('상태')]) setCell_(sh, r, c('상태'), '입금 대기');
+
+    if (!String(row[c('문서번호')]).trim()) {
+      var no = nextDocNo_(all, c('문서번호'), issued.getFullYear());
+      setCell_(sh, r, c('문서번호'), no);
+      all[r - 1][c('문서번호')] = no;
+    }
+    if (!row[c('링크ID')]) {
+      var id = newId_();
+      setCell_(sh, r, c('링크ID'), id);
+      setCell_(sh, r, c('링크'), SITE_URL + '?id=' + id);
+      if (!row[c('생성일')]) setCell_(sh, r, c('생성일'), new Date());
+    }
+  }
+}
+
+function setCell_(sh, r, colIdx, value, fmt) {
+  if (colIdx < 0) return;
+  var cell = sh.getRange(r, colIdx + 1);
+  cell.setValue(value);
+  if (fmt) cell.setNumberFormat(fmt);
+}
+
+/** 그 해의 PLAB-연도-NNNN 중 가장 큰 번호 + 1 */
+function nextDocNo_(rows, col, year) {
+  var re = new RegExp('^PLAB-' + year + '-(\\d+)$'), max = 0;
+  rows.forEach(function (row) {
+    var m = String(row[col]).trim().match(re);
+    if (m) max = Math.max(max, Number(m[1]));
+  });
+  return 'PLAB-' + year + '-' + ('000' + (max + 1)).slice(-4);
+}
+
 function testSlack() {
   var ok = notifySlack_(':white_check_mark: PLAB 청구서 슬랙 알림 테스트입니다.');
   SpreadsheetApp.getUi().alert(ok ? '슬랙으로 보냈어요.' : 'SLACK_WEBHOOK 스크립트 속성을 확인해주세요.');
