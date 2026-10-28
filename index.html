@@ -84,6 +84,39 @@
       <span class="chev" aria-hidden="true">›</span>
     </button>
 
+    <div class="tools">
+      <div class="tiles">
+        <button type="button" class="tile" data-go="invoice">
+          <span class="tile-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg></span>
+          <b>청구서 PDF</b><span>원본 보기·저장</span>
+        </button>
+        <button type="button" class="tile" id="plab-docs-open" aria-expanded="false" aria-controls="plab-docs">
+          <span class="tile-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></span>
+          <b>프랩 서류</b><span>등록증·통장 사본</span>
+        </button>
+        <button type="button" class="tile" id="ask-open" aria-expanded="false" aria-controls="ask-box">
+          <span class="tile-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 10h8"/></svg></span>
+          <b>메시지</b><span>담당자에게 문의</span>
+        </button>
+      </div>
+      <div class="tool-body" id="plab-docs" hidden>
+        <span class="muted small">거래처 등록에 필요하시면 받아가세요.</span>
+        <div class="grid2">
+          <button type="button" class="btn-line" data-asset="biz">사업자등록증 받기</button>
+          <button type="button" class="btn-line" data-asset="bank">통장 사본 받기</button>
+        </div>
+      </div>
+      <div class="tool-body" id="ask-box" hidden>
+        <label for="ask-text" class="label">담당자에게 남길 메시지</label>
+        <textarea id="ask-text" maxlength="2000" placeholder="예: 입금은 다음 주 화요일에 할게요"></textarea>
+        <div class="grid2">
+          <button type="button" class="btn-line" id="ask-cancel">닫기</button>
+          <button type="button" class="btn-green" id="ask-send" disabled>보내기</button>
+        </div>
+      </div>
+      <div class="tool-body sent" id="ask-sent" hidden><span>메시지를 전달했어요. 담당자가 곧 연락드릴게요.</span></div>
+    </div>
+
     <details class="items" open>
       <summary>청구 내역<span class="num muted small" id="item-count"></span></summary>
       <div class="stack g10 lines">
@@ -94,37 +127,6 @@
         <p class="memo" id="memo-box" data-f="memo"></p>
       </div>
     </details>
-
-    <div class="acts">
-      <button type="button" class="act" data-go="invoice">
-        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
-        <span class="grow">청구서 원본 · PDF 저장</span><span class="chev" aria-hidden="true">›</span>
-      </button>
-      <button type="button" class="act" id="plab-docs-open" aria-expanded="false">
-        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
-        <span class="grow">프랩 사업자등록증 · 통장 사본</span><span class="chev" aria-hidden="true">›</span>
-      </button>
-      <div class="act-body" id="plab-docs" hidden>
-        <span class="muted small">거래처 등록에 필요하시면 받아가세요.</span>
-        <div class="grid2">
-          <button type="button" class="btn-line" data-asset="biz">사업자등록증</button>
-          <button type="button" class="btn-line" data-asset="bank">통장 사본</button>
-        </div>
-      </div>
-      <button type="button" class="act" id="ask-open" aria-expanded="false">
-        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>
-        <span class="grow">담당자에게 메시지 남기기</span><span class="chev" aria-hidden="true">›</span>
-      </button>
-      <div class="act-body" id="ask-box" hidden>
-        <label for="ask-text" class="sr">메시지</label>
-        <textarea id="ask-text" maxlength="2000" placeholder="예: 입금은 다음 주 화요일에 할게요"></textarea>
-        <div class="grid2">
-          <button type="button" class="btn-line" id="ask-cancel">닫기</button>
-          <button type="button" class="btn-green" id="ask-send" disabled>보내기</button>
-        </div>
-      </div>
-      <div class="act-body" id="ask-sent" hidden><span>메시지를 전달했어요. 담당자가 곧 연락드릴게요.</span></div>
-    </div>
 
     <section class="history" id="history" hidden>
       <div class="row"><b>지난 청구</b><span class="muted small" id="history-n"></span></div>

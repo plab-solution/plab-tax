@@ -302,11 +302,14 @@
 
     // 문의
     var ta = $('#ask-text'), send = $('#ask-send');
+    var panels = [[$('#plab-docs-open'), $('#plab-docs')], [$('#ask-open'), $('#ask-box')]];
     var toggle = function (btn, body) {
       btn.addEventListener('click', function () {
         var open = body.hidden;
+        panels.forEach(function (p) { p[1].hidden = true; p[0].setAttribute('aria-expanded', 'false'); });
+        $('#ask-sent').hidden = true;
         body.hidden = !open; btn.setAttribute('aria-expanded', String(open));
-        if (open && body === $('#ask-box')) { $('#ask-sent').hidden = true; ta.focus(); }
+        if (open && body === $('#ask-box')) ta.focus();
       });
     };
     toggle($('#plab-docs-open'), $('#plab-docs'));
