@@ -100,7 +100,7 @@
     var inv = state.inv;
     var f = {
       no: inv.no, title: inv.title, memo: inv.memo,
-      clientName: inv.client.name, clientCeo: inv.client.ceo || '-', clientBiz: inv.client.bizNo || '-',
+      clientName: inv.client.name, clientLegal: inv.client.legalName || inv.client.name, clientCeo: inv.client.ceo || '-', clientBiz: inv.client.bizNo || '-',
       supplyFmt: won(inv.supply), discountFmt: won(inv.discount), vatFmt: won(inv.vat), totalFmt: won(inv.total),
       totalKo: koNum(inv.total), issuedDot: dotSpaced(inv.issued), dueDot: dotSpaced(inv.due), issuedKo: koDate(inv.issued)
     };
