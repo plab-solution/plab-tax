@@ -34,6 +34,12 @@
       <div><b data-co="name"></b><small>청구서 · <span data-f="no"></span></small></div>
     </div>
 
+    <!-- 기존 거래처 인사 -->
+    <div class="hello" id="hello" hidden>
+      <span class="hello-ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg></span>
+      <span><b><span data-f="clientName"></span>님, 다시 찾아주셔서 감사해요</b><small>프랩과 <span id="visit-n"></span>번째 거래예요</small></span>
+    </div>
+
     <div class="card stack g18">
       <div class="row top">
         <div class="stack g4">
@@ -92,6 +98,12 @@
     <div class="card row" id="reg-done" style="justify-content:flex-start;font-size:14px" hidden>
       <span class="check"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>
       <span>기초 정보가 등록돼 있어요. 세금계산서는 입금 확인 후 발행할게요.</span>
+    </div>
+
+    <!-- 지난 청구서 (같은 사업자번호) -->
+    <div class="card stack g12" id="history" hidden>
+      <div class="row"><span style="font-size:15px;font-weight:700">지난 청구서</span><span class="small" id="history-n"></span></div>
+      <div class="stack" id="history-list"></div>
     </div>
 
     <button type="button" class="card cardbtn" id="ask-open">
@@ -171,13 +183,17 @@
     <button type="button" class="back" data-go="home" aria-label="뒤로"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
     <div class="stack g8">
       <span class="stepno">1 / 2</span>
-      <h1>사업자등록번호를<br>입력해주세요</h1>
+      <h1>사업자 정보를<br>입력해주세요</h1>
       <span class="lbl">한 번 제출하면 다음 거래부터는 다시 입력하지 않아도 돼요.</span>
     </div>
     <div class="stack g8">
       <label for="biz-input" class="lbl">사업자등록번호</label>
       <input id="biz-input" class="field" type="text" inputmode="numeric" autocomplete="off" placeholder="000-00-00000">
       <span class="err" id="biz-err" role="alert"></span>
+    </div>
+    <div class="stack g8">
+      <label for="ceo-input" class="lbl">대표자 이름</label>
+      <input id="ceo-input" class="field" type="text" autocomplete="name" maxlength="40" placeholder="홍길동" style="letter-spacing:0">
     </div>
     <div class="grow"></div>
     <button type="button" class="primary" id="biz-next" disabled>다음</button>

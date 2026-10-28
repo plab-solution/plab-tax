@@ -7,7 +7,7 @@
   var ID = (params.get('id') || '').trim();
   var DEMO = !CFG.API_URL || params.get('demo') === '1';
 
-  var state = { inv: null, registered: false, biz: '', files: {}, seal: null };
+  var state = { inv: null, registered: false, client: { type: 'new', count: 1, history: [] }, biz: '', ceo: '', files: {}, seal: null };
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
@@ -136,8 +136,33 @@
     tb.appendChild(tr([['부가세 (10%)', 'r', 4], [won(inv.vat), 'r']], 'sum'));
     tb.appendChild(tr([['합계', 'r serif', 4], [won(inv.total), 'r serif']], 'grand'));
 
+    var existing = state.registered && state.client.type === 'existing';
+    $('#hello').hidden = !existing;
+    $('#visit-n').textContent = state.client.count || 1;
     $('#reg-card').hidden = state.registered;
-    $('#reg-done').hidden = !state.registered;
+    $('#reg-done').hidden = !state.registered || existing;
+    renderHistory();
+  }
+
+  function renderHistory() {
+    var list = state.client.history || [];
+    $('#history').hidden = !list.length;
+    if (!list.length) return;
+    $('#history-n').textContent = list.length + '건';
+    var box = $('#history-list'); box.innerHTML = '';
+    list.forEach(function (h) {
+      var a = document.createElement('a'); a.className = 'hist'; a.href = '?id=' + encodeURIComponent(h.id) + (DEMO ? '&demo=1&as=existing' : '');
+      var l = document.createElement('span'); l.className = 'stack g4';
+      var meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = h.no + ' · ' + dot(h.issued);
+      var t = document.createElement('span'); t.className = 't'; t.textContent = h.title;
+      l.appendChild(meta); l.appendChild(t);
+      var r = document.createElement('span'); r.className = 'r';
+      var amt = document.createElement('span'); amt.className = 'amt'; amt.textContent = won(h.total) + '원';
+      var pill = document.createElement('span'); var paid = h.status === '입금 완료';
+      pill.className = 'pill sm ' + (paid ? 'paid' : 'wait'); pill.textContent = paid ? '입금 완료' : '입금 대기';
+      r.appendChild(amt); r.appendChild(pill);
+      a.appendChild(l); a.appendChild(r); box.appendChild(a);
+    });
   }
   function tr(cells, cls) {
     var row = document.createElement('tr'); if (cls) row.className = cls;
@@ -239,13 +264,16 @@
     });
 
     // 1단계
-    var bi = $('#biz-input'), next = $('#biz-next');
+    var bi = $('#biz-input'), ci = $('#ceo-input'), next = $('#biz-next');
+    var step1Ready = function () { next.disabled = !(state.biz.length === 10 && state.ceo.length >= 2); };
     bi.addEventListener('input', function () {
       bi.value = fmtBiz(bi.value);
       state.biz = bi.value.replace(/\D/g, '');
       $('#biz-err').textContent = '';
-      next.disabled = state.biz.length !== 10;
+      step1Ready();
     });
+    ci.addEventListener('input', function () { state.ceo = ci.value.trim(); step1Ready(); });
+    ci.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !next.disabled) next.click(); });
     bi.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !next.disabled) next.click(); });
     next.addEventListener('click', function () {
       if (!validBiz(state.biz)) { $('#biz-err').textContent = '사업자등록번호가 올바르지 않아요. 다시 확인해주세요.'; return; }
@@ -254,12 +282,12 @@
         if (!r.ok) throw new Error(r.error);
         if (r.registered) {
           // 이미 서류가 있는 거래처 → 이 청구서에 연결만
-          return apiPost({ action: 'register', id: ID, bizNo: state.biz }).then(function () { finish(true); });
+          return apiPost({ action: 'register', id: ID, bizNo: state.biz, ceo: state.ceo }).then(function () { finish(true); });
         }
         show('docs');
       }).catch(function (e) {
         $('#biz-err').textContent = e.message === 'invalid_biz' ? '사업자등록번호가 올바르지 않아요.' : '확인하지 못했어요. 잠시 후 다시 시도해주세요.';
-      }).then(function () { next.disabled = false; next.textContent = '다음'; });
+      }).then(function () { next.textContent = '다음'; step1Ready(); });
     });
 
     // 2단계
@@ -284,7 +312,7 @@
     var sub = $('#docs-submit');
     sub.addEventListener('click', function () {
       sub.disabled = true; sub.textContent = '올리는 중…';
-      apiPost({ action: 'register', id: ID, bizNo: state.biz, files: [state.files.biz, state.files.bank] }).then(function (r) {
+      apiPost({ action: 'register', id: ID, bizNo: state.biz, ceo: state.ceo, files: [state.files.biz, state.files.bank] }).then(function (r) {
         if (!r.ok) throw new Error(r.error);
         finish(false);
       }).catch(function (e) {
@@ -297,6 +325,8 @@
   function updateSubmit() { $('#docs-submit').disabled = !(state.files.biz && state.files.bank); }
   function finish(already) {
     state.registered = true;
+    if (!state.inv.client.bizNo) state.inv.client.bizNo = fmtBiz(state.biz);
+    if (!state.inv.client.ceo && state.ceo) state.inv.client.ceo = state.ceo;
     $('#done-biz').textContent = fmtBiz(state.biz);
     $('#done-title').textContent = already ? '이미 등록된 사업자예요' : '등록이 완료됐어요';
     render(); show('done');
@@ -314,10 +344,16 @@
         if (kind === 'get' && q.action === 'invoice') {
           var due = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
           var today = new Date().toISOString().slice(0, 10);
-          res({ ok: true, registered: false, invoice: {
+          var ex = params.get('as') === 'existing';
+          res({ ok: true, registered: ex,
+            client: ex ? { type: 'existing', count: 3, history: [
+              { id: 'demo-0010-aaaaaaaaaaaa', no: 'PLAB-2026-0010', title: '월 유지관리 (9월)', issued: '2026-09-30', total: 330000, status: '입금 완료' },
+              { id: 'demo-0008-aaaaaaaaaaaa', no: 'PLAB-2026-0008', title: '월 유지관리 (8월)', issued: '2026-08-29', total: 330000, status: '입금 완료' }
+            ] } : { type: 'new', count: 1, history: [] },
+            invoice: {
             no: 'PLAB-2026-0012', issued: today, due: due, title: 'AI 상담 챗봇 구축', status: '입금 대기',
             memo: '1차 구축분 청구서입니다. 세금계산서는 입금 확인 후 발행됩니다.',
-            client: { name: '한결푸드', ceo: '홍길동', bizNo: '' },
+            client: { name: '한결푸드', ceo: ex ? '홍길동' : '', bizNo: ex ? '155-81-02082' : '' },
             items: [{ name: 'AI 상담 챗봇 구축', qty: 1, price: 3000000, amount: 3000000 }, { name: '월 유지관리 (11월)', qty: 1, price: 300000, amount: 300000 }],
             supply: 3300000, discount: 300000, vat: 300000, total: 3300000
           } });
@@ -338,7 +374,7 @@
       if (r.error === 'cancelled') return fail('취소된 청구서예요', '자세한 내용은 ' + (CO.phone || '') + '로 문의해주세요.');
       return fail('청구서를 찾을 수 없어요', '링크가 정확한지 확인해주세요. 문의: ' + (CO.phone || ''));
     }
-    state.inv = r.invoice; state.registered = !!r.registered;
+    state.inv = r.invoice; state.registered = !!r.registered; if (r.client) state.client = r.client;
     render(); show('home');
   }).catch(function () {
     fail('잠시 연결이 원활하지 않아요', '잠시 후 새로고침해주세요. 문의: ' + (CO.phone || ''));

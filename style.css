@@ -58,6 +58,20 @@ textarea{min-height:96px;padding:12px 14px;border:1px solid var(--field);border-
 .check{flex-shrink:0;width:32px;height:32px;border-radius:50%;background:#E2F6EA;color:#14804A;display:flex;align-items:center;justify-content:center}
 .foot{text-align:center;padding-top:8px;font-size:12px;color:var(--muted);line-height:1.7}
 
+/* 기존 거래처 */
+.hello{display:flex;align-items:center;gap:12px;background:var(--ink);color:#fff;border-radius:20px;padding:16px 20px}
+.hello b{display:block;font-size:15px}
+.hello small{display:block;font-size:12px;color:#C9D2E6;margin-top:3px}
+.hello-ico{flex-shrink:0;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.12);color:#FFB4A8;display:flex;align-items:center;justify-content:center}
+.hist{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line);color:var(--ink);text-decoration:none;min-height:44px}
+.hist:first-child{border-top:0;padding-top:0}
+.hist:hover{color:var(--blue-ink)}
+.hist .meta{font-size:12px;color:var(--muted)}
+.hist .t{font-size:14px;font-weight:500}
+.hist .r{text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.hist .amt{font-size:14px;font-weight:700}
+.pill.sm{padding:3px 8px;font-size:11px}
+
 /* 단계 화면 */
 .step{max-width:440px;margin:0 auto;min-height:calc(100vh - 88px);display:flex;flex-direction:column;gap:24px;background:#fff;border-radius:24px;padding:24px}
 .back{width:44px;height:44px;border:0;background:transparent;cursor:pointer;color:var(--ink);display:flex;align-items:center;justify-content:center;margin-left:-10px;border-radius:12px}
