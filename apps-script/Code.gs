@@ -92,6 +92,8 @@ function ensureHeaders_() {
       if (prev >= 0) { sh.insertColumnAfter(prev + 1); col = prev + 2; }
       else { col = sh.getLastColumn() + 1; }
       sh.getRange(1, col).setValue(name).setFontWeight('bold');
+      // 끼워 넣은 열은 왼쪽 열의 드롭다운·서식을 물려받으므로 비웁니다.
+      sh.getRange(2, col, Math.max(1, sh.getMaxRows() - 1), 1).clearDataValidations().clearFormat();
     });
   });
 }
@@ -106,6 +108,8 @@ function applyFormats_() {
     var rows = Math.max(1, sh.getMaxRows() - 1);
     h.forEach(function (name, i) {
       sh.getRange(1, i + 1).setBackground(auto.indexOf(name) >= 0 ? '#E8F0FE' : '#F8F9FA').setFontWeight('bold');
+      // 스크립트가 채우는 칸에는 드롭다운이 있으면 안 됩니다.
+      if (auto.indexOf(name) >= 0 || ['세금계산서 발행일', '거래 건수', '누적 청구액'].indexOf(name) >= 0) sh.getRange(2, i + 1, rows, 1).clearDataValidations();
       if (/일$|일시$/.test(name) || name === '지급기한') sh.getRange(2, i + 1, rows, 1).setNumberFormat(name === '일시' ? 'yyyy-mm-dd hh:mm' : 'yyyy-mm-dd');
       if (['금액', '할인', '단가', '누적 청구액'].indexOf(name) >= 0) sh.getRange(2, i + 1, rows, 1).setNumberFormat('#,##0');
     });
