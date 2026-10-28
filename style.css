@@ -10,7 +10,7 @@ button{font:inherit;color:inherit}
 [hidden]{display:none !important}
 h1{margin:0;font-size:26px;line-height:1.35;font-weight:700;letter-spacing:-.01em}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.num{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1}
 .my{font-family:'Nanum Myeongjo',serif}
 .muted{color:var(--muted)}
 .small{font-size:12px}
@@ -50,10 +50,10 @@ h1{margin:0;font-size:26px;line-height:1.35;font-weight:700;letter-spacing:-.01e
 .now-tag{font-size:12px;font-weight:700;color:var(--green);letter-spacing:.06em}
 .now-tag.gray{color:var(--muted)}
 .lead{margin:0;font-size:15px;line-height:1.7}
-.amount{font-size:36px;font-weight:600;letter-spacing:-.02em;line-height:1.15}
-.amount small{font-size:18px;margin-left:4px}
+.amount{font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1.15}
+.amount small{font-size:20px;font-weight:600;margin-left:3px}
 .acct{background:var(--green-bg);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
-.acct-no{font-size:15px;font-weight:600;white-space:nowrap}
+.acct-no{font-size:16px;font-weight:700;white-space:nowrap;letter-spacing:-.01em}
 .also{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:12px 16px;border:1px solid var(--line2);border-radius:14px;background:#fff;text-align:left;cursor:pointer;margin-top:-12px}
 .also:hover{border-color:var(--green)}
 .also b{font-size:14px}
