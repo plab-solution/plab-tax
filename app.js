@@ -78,7 +78,14 @@
     VIEWS.forEach(function (k) { $('#v-' + k).hidden = k !== v; });
     try { window.scrollTo(0, 0); } catch (e) {}
     if (v === 'invoice') loadSeal();
-    if (v === 'biz') setTimeout(function () { $('#biz-input').focus(); }, 50);
+    if (v === 'biz') {
+      // 시트에 이미 있는 사업자번호·대표자는 미리 채워둡니다.
+      var c = state.inv && state.inv.client;
+      if (c && c.bizNo && !$('#biz-input').value) { $('#biz-input').value = c.bizNo; state.biz = c.bizNo.replace(/\D/g, ''); }
+      if (c && c.ceo && !$('#ceo-input').value) { $('#ceo-input').value = c.ceo; state.ceo = c.ceo; }
+      $('#biz-next').disabled = !(state.biz.length === 10 && state.ceo.length >= 2);
+      setTimeout(function () { $('#biz-input').focus(); }, 50);
+    }
   }
   function toast(msg) {
     var t = $('#toast'); t.textContent = msg; t.hidden = false;
@@ -136,11 +143,19 @@
     tb.appendChild(tr([['부가세 (10%)', 'r', 4], [won(inv.vat), 'r']], 'sum'));
     tb.appendChild(tr([['합계', 'r serif', 4], [won(inv.total), 'r serif']], 'grand'));
 
-    var existing = state.registered && state.client.type === 'existing';
+    var existing = state.client.type === 'existing';
     $('#hello').hidden = !existing;
-    $('#visit-n').textContent = state.client.count || 1;
+    // 사이트 이전부터 거래한 곳은 이 사이트 기준 건수가 1이라 횟수 대신 인사만 보여줍니다.
+    if ((state.client.count || 1) > 1) $('#hello-sub').innerHTML = '프랩과 <span id="visit-n">' + state.client.count + '</span>번째 거래예요';
+    else $('#hello-sub').textContent = '늘 함께해주셔서 감사해요';
     $('#reg-card').hidden = state.registered;
     $('#reg-done').hidden = !state.registered || existing;
+    if (existing) {
+      // 오래 거래한 곳인데 서류만 없는 경우
+      $('#reg-title').textContent = '세금계산서용 서류를 한 번만 올려주세요';
+      $('#reg-desc').innerHTML = '다음 청구부터는 다시 요청하지 않아요.<br>사업자등록증·통장사본만 있으면 3분이면 끝나요.';
+      $('#reg-btn').textContent = '서류 올리기';
+    }
     renderHistory();
   }
 
@@ -328,7 +343,7 @@
     if (!state.inv.client.bizNo) state.inv.client.bizNo = fmtBiz(state.biz);
     if (!state.inv.client.ceo && state.ceo) state.inv.client.ceo = state.ceo;
     $('#done-biz').textContent = fmtBiz(state.biz);
-    $('#done-title').textContent = already ? '이미 등록된 사업자예요' : '등록이 완료됐어요';
+    $('#done-title').textContent = already ? '이미 등록된 사업자예요' : state.client.type === 'existing' ? '서류를 잘 받았어요' : '등록이 완료됐어요';
     render(); show('done');
   }
   function legacyCopy(text) {
@@ -344,8 +359,8 @@
         if (kind === 'get' && q.action === 'invoice') {
           var due = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
           var today = new Date().toISOString().slice(0, 10);
-          var ex = params.get('as') === 'existing';
-          res({ ok: true, registered: ex,
+          var ex = params.get('as') === 'existing' || params.get('as') === 'nodocs'; var nodocs = params.get('as') === 'nodocs';
+          res({ ok: true, registered: ex && !nodocs,
             client: ex ? { type: 'existing', count: 3, history: [
               { id: 'demo-0010-aaaaaaaaaaaa', no: 'PLAB-2026-0010', title: '월 유지관리 (9월)', issued: '2026-09-30', total: 330000, status: '입금 완료' },
               { id: 'demo-0008-aaaaaaaaaaaa', no: 'PLAB-2026-0008', title: '월 유지관리 (8월)', issued: '2026-08-29', total: 330000, status: '입금 완료' }

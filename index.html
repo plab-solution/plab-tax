@@ -37,7 +37,7 @@
     <!-- 기존 거래처 인사 -->
     <div class="hello" id="hello" hidden>
       <span class="hello-ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg></span>
-      <span><b><span data-f="clientName"></span>님, 다시 찾아주셔서 감사해요</b><small>프랩과 <span id="visit-n"></span>번째 거래예요</small></span>
+      <span><b><span data-f="clientName"></span>님, 다시 찾아주셔서 감사해요</b><small id="hello-sub">프랩과 <span id="visit-n"></span>번째 거래예요</small></span>
     </div>
 
     <div class="card stack g18">
@@ -90,10 +90,10 @@
 
     <div class="card stack g16 center" id="reg-card">
       <div class="stack g6">
-        <span style="font-size:17px;font-weight:700">프랩과 첫 거래네요, 반가워요!</span>
-        <span class="lbl" style="line-height:1.6">세금계산서 발행을 위해 기초 정보를 등록해주세요.<br>사업자등록증·통장사본만 있으면 3분이면 끝나요.</span>
+        <span style="font-size:17px;font-weight:700" id="reg-title">프랩과 첫 거래네요, 반가워요!</span>
+        <span class="lbl" style="line-height:1.6" id="reg-desc">세금계산서 발행을 위해 기초 정보를 등록해주세요.<br>사업자등록증·통장사본만 있으면 3분이면 끝나요.</span>
       </div>
-      <button type="button" class="primary" data-go="biz">기초 정보 등록하기</button>
+      <button type="button" class="primary" data-go="biz" id="reg-btn">기초 정보 등록하기</button>
     </div>
     <div class="card row" id="reg-done" style="justify-content:flex-start;font-size:14px" hidden>
       <span class="check"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>

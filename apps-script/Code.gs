@@ -229,7 +229,8 @@ function refreshAll() {
       var s = ctx.stats[c.biz] || { count: 0, first: '', last: '', total: 0 };
       var route = String(c.obj['등록 경로'] || '') || (c.hasDocs ? '기존 자료' : '');
       out['등록 경로'].push([route]);
-      out['구분'].push([!c.biz ? '' : !c.hasDocs ? '서류 대기' : clientType_(route, s.count)]);
+      var t = clientType_(route, s.count);
+      out['구분'].push([!c.biz ? '' : !c.hasDocs ? (t === '기존' ? '기존 · 서류 대기' : '서류 대기') : t]);
       out['첫 거래일'].push([s.first || '']);
       out['거래 건수'].push([s.count]);
       out['최근 청구일'].push([s.last || '']);
@@ -293,7 +294,9 @@ function getInvoice_(id) {
   var cl = iv.biz ? ctx.clientByBiz[iv.biz] : null;
   var registered = !!(cl && cl.hasDocs);
   var s = (iv.biz && ctx.stats[iv.biz]) || { count: 1 };
-  var type = registered ? (clientType_(String(cl.obj['등록 경로'] || '기존 자료'), s.count) === '기존' ? 'existing' : 'new') : 'new';
+  // 거래처 탭에 있는 곳은 서류가 없어도 구분(기존/신규)을 알려줍니다.
+  var route = cl ? String(cl.obj['등록 경로'] || (registered ? '기존 자료' : '')) : '';
+  var type = cl && clientType_(route, s.count) === '기존' ? 'existing' : 'new';
 
   var history = !iv.biz ? [] : ctx.invoices
     .filter(function (x) { return x.biz === iv.biz && x !== iv && x.obj['상태'] !== '취소' && x.obj['링크ID']; })
@@ -399,7 +402,7 @@ function postRegister_(b) {
     var rIdx = rowIndexByBiz_(cl, d);
     var put = function (n, v) { var col = colOf_(cl, n); if (col && v !== '' && v != null) cl.getRange(rIdx, col).setValue(v); };
     put('사업자등록증', urls.biz); put('통장사본', urls.bank); put('제출일', new Date());
-    put('등록 경로', '사이트 제출'); if (!existing['대표자']) put('대표자', ceo); if (!existing['상호']) put('상호', o['거래처 상호']);
+    if (!existing['등록 경로']) put('등록 경로', '사이트 제출'); if (!existing['대표자']) put('대표자', ceo); if (!existing['상호']) put('상호', o['거래처 상호']);
   } else {
     appendByHeader_(cl, {
       '사업자번호': fmtBiz_(d), '상호': o['거래처 상호'], '대표자': ceo, '등록 경로': '사이트 제출',
@@ -409,7 +412,8 @@ function postRegister_(b) {
   linkInvoice(ceo);
   refreshAll();
 
-  notifySlack_(':new: *신규 거래처 서류 제출* — ' + o['거래처 상호'] + (ceo ? ' (대표 ' + ceo + ')' : '') + ' · ' + fmtBiz_(d) + '\n'
+  var wasExisting = existing && clientType_(String(existing['등록 경로'] || ''), (loadAll_().stats[d] || { count: 1 }).count) === '기존';
+  notifySlack_((wasExisting ? ':page_facing_up: *[기존] 거래처 서류 제출* — ' : ':new: *신규 거래처 서류 제출* — ') + o['거래처 상호'] + (ceo ? ' (대표 ' + ceo + ')' : '') + ' · ' + fmtBiz_(d) + '\n'
     + '청구서 ' + o['문서번호'] + ' · <' + folder.getUrl() + '|서류 폴더 열기>');
   return { ok: true };
 }
@@ -471,7 +475,8 @@ function clientType_(route, count) {
 function invoiceType_(iv, ctx) {
   if (!iv.biz) return '신규 · 서류 대기';
   var cl = ctx.clientByBiz[iv.biz];
-  if (!cl || !cl.hasDocs) return '서류 대기';
+  if (!cl) return '서류 대기';
+  if (!cl.hasDocs) return clientType_(String(cl.obj['등록 경로'] || ''), (ctx.stats[iv.biz] || { count: 1 }).count) === '기존' ? '기존 · 서류 대기' : '서류 대기';
   var s = ctx.stats[iv.biz] || { count: 1 };
   return clientType_(String(cl.obj['등록 경로'] || '기존 자료'), s.count);
 }
