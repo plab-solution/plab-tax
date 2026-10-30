@@ -61,10 +61,8 @@
   }
 
   /* ───────── 거래 유형에 따라 필수 항목 ───────── */
-  function needEmail() { return state.type === 'pay' || state.type === 'both'; }
-  function needBank() { return state.type === 'receive' || state.type === 'both'; }
+  function needBank() { return state.type === 'receive'; }
   function applyType() {
-    $('#email-opt').textContent = needEmail() ? '' : '(선택)';
     $('#bank-opt').textContent = needBank() ? '' : '(선택)';
     $('#bank-hint').hidden = needBank();
     check();
@@ -74,7 +72,7 @@
     var d = val('biz').replace(/\D/g, '');
     var ok = !!state.type && d.length === 10 && val('legal') && val('ceo').length >= 2 && val('contact')
       && val('phone').replace(/\D/g, '').length >= 9
-      && (needEmail() ? validEmail(val('email')) : (!val('email') || validEmail(val('email'))))
+      && validEmail(val('email'))
       && state.files.biz && (!needBank() || state.files.bank)
       && $('#agree').checked;
     $('#submit').disabled = !ok;

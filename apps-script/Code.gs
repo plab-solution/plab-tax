@@ -548,8 +548,8 @@ function postJoin_(b) {
   var phone = String(b.phone || '').replace(/[^\d-]/g, '').slice(0, 20);
   var email = String(b.email || '').trim().slice(0, 120);
   if (!legal || !ceo || !contact || phone.replace(/\D/g, '').length < 9) return { ok: false, error: 'missing_fields' };
-  if (email && !validEmail_(email)) return { ok: false, error: 'invalid_email' };
-  if (b.type !== 'receive' && !email) return { ok: false, error: 'missing_email' };
+  if (!email) return { ok: false, error: 'missing_email' };
+  if (!validEmail_(email)) return { ok: false, error: 'invalid_email' };
   if (!b.agree) return { ok: false, error: 'no_agree' };
 
   var byKind = {};
