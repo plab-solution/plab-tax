@@ -10,6 +10,7 @@
  *   SEAL_FILE_ID     : 직인 이미지(PNG) 드라이브 파일 ID
  *   PLAB_BIZ_FILE_ID : 프랩 사업자등록증 파일 ID (거래처 '프랩 서류 받기'용)
  *   PLAB_BANK_FILE_ID: 프랩 통장사본 파일 ID
+ *   PLAB_TAX_EMAIL   : (선택) 거래처가 프랩에 세금계산서를 보낼 이메일. 기본 ops@plabsolution.com
  *   HISTORY_DAYS     : (선택) 입금 완료 후 며칠이 지나면 '지난 청구' 목록을 숨길지. 기본 30
  *
  * 거래처 구분
@@ -27,7 +28,7 @@ var TZ = 'Asia/Seoul';
 var SHEETS = {
   invoice: { name: '청구서', headers: ['링크ID', '문서번호', '발행일', '지급기한', '거래처 상호', '구분', '거래처 사업자번호', '거래처 대표자', '건명', '금액', '할인', '비고', '상태', '입금일', '세금계산서 발행일', '링크', '생성일'] },
   item:    { name: '품목',   headers: ['문서번호', '품목명', '수량', '단가'] },
-  client:  { name: '거래처', headers: ['사업자번호', '상호', '사업자명', '대표자', '세금계산서 이메일', '구분', '등록 경로', '사업자등록증', '통장사본', '첫 거래일', '거래 건수', '최근 청구일', '누적 청구액', '메모', '제출일', '청구서 문서번호', '선택 목록'] },
+  client:  { name: '거래처', headers: ['사업자번호', '상호', '사업자명', '대표자', '세금계산서 이메일', '담당자', '담당자 연락처', '거래 유형', '구분', '등록 경로', '확인', '사업자등록증', '통장사본', '첫 거래일', '거래 건수', '최근 청구일', '누적 청구액', '메모', '제출일', '청구서 문서번호', '선택 목록'] },
   inquiry: { name: '문의',   headers: ['일시', '문서번호', '거래처', '구분', '내용', '처리'] }
 };
 // 스크립트가 채우는 칸(파란색으로 표시)
@@ -45,7 +46,8 @@ var LOCK_COLS = {
 var LOCK_TAG = 'PLAB 자동 칸';
 
 // 같은 링크에서 1시간에 보낼 수 있는 요청 수
-var RATE_LIMITS = { inquiry: 5, checkBiz: 20, register: 5, setEmail: 5, asset: 30, invoice: 120 };
+var RATE_LIMITS = { inquiry: 5, checkBiz: 20, register: 5, setEmail: 5, asset: 30, invoice: 120, join: 30, joinBiz: 3, joinAsset: 300 };
+var JOIN_TYPES = { pay: '프랩에 대금 지급', receive: '프랩에서 대금 수령', both: '둘 다' };
 var CACHE_SECONDS = 300;
 
 var MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -201,7 +203,13 @@ function applyFormats_() {
       .build());
   var ep = colOf_(cl, '등록 경로');
   if (ep) cl.getRange(2, ep, Math.max(1, cl.getMaxRows() - 1), 1).setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInList(['사이트 제출', '기존 자료'], true).build());
+    SpreadsheetApp.newDataValidation().requireValueInList(['사이트 제출', '등록 폼', '기존 자료'], true).build());
+  var cf = colOf_(cl, '확인');
+  if (cf) cl.getRange(2, cf, Math.max(1, cl.getMaxRows() - 1), 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(['확인 대기', '확인 완료'], true).build());
+  var jt = colOf_(cl, '거래 유형');
+  if (jt) cl.getRange(2, jt, Math.max(1, cl.getMaxRows() - 1), 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList([JOIN_TYPES.pay, JOIN_TYPES.receive, JOIN_TYPES.both], true).build());
 }
 
 /** 링크ID가 비어 있고 문서번호가 있는 행마다 추측할 수 없는 ID와 링크를 채웁니다. */
@@ -328,7 +336,7 @@ function refreshAll() {
       var route = String(c.obj['등록 경로'] || '') || (c.hasDocs ? '기존 자료' : '');
       out['등록 경로'].push([route]);
       var t = clientType_(route, s.count);
-      out['구분'].push([!c.biz ? '' : !c.hasDocs ? (t === '기존' ? '기존 · 서류 대기' : '서류 대기') : t]);
+      out['구분'].push([!c.biz ? '' : c.pending ? '확인 대기' : !c.hasDocs ? (t === '기존' ? '기존 · 서류 대기' : '서류 대기') : t]);
       out['첫 거래일'].push([s.first || '']);
       out['거래 건수'].push([s.count]);
       out['최근 청구일'].push([s.last || '']);
@@ -406,6 +414,11 @@ function limited_(id, action) {
 function doGet(e) {
   var p = (e && e.parameter) || {};
   try {
+    if (p.action === 'joinInfo') return json_({ ok: true, taxEmail: prop_('PLAB_TAX_EMAIL') || 'ops@plabsolution.com' });
+    if (p.action === 'joinAsset') {
+      if (limited_('public', 'joinAsset')) return json_({ ok: false, error: 'rate_limited' });
+      return json_(plabFile_(p.kind));
+    }
     if (p.action === 'invoice' || p.action === 'asset') {
       if (limited_(p.id, p.action)) return json_({ ok: false, error: 'rate_limited' });
     }
@@ -428,6 +441,7 @@ function doPost(e) {
     if (body.action === 'checkBiz') return json_(checkBiz_(body));
     if (body.action === 'register') return json_(postRegister_(body));
     if (body.action === 'setEmail') return json_(postEmail_(body));
+    if (body.action === 'join') return json_(postJoin_(body));
     return json_({ ok: false, error: 'unknown_action' });
   } catch (err) {
     return json_({ ok: false, error: String(err.message || err) });
@@ -500,12 +514,93 @@ function getInvoice_(id) {
 /** 직인·프랩 서류는 공개 레포에 두지 않고, 유효한 청구서 링크로만 내려줍니다. */
 function getAsset_(id, kind) {
   if (!findInvoice_(id)) return { ok: false, error: 'not_found' };
-  var key = { seal: 'SEAL_FILE_ID', biz: 'PLAB_BIZ_FILE_ID', bank: 'PLAB_BANK_FILE_ID' }[kind];
+  return assetFile_({ seal: 'SEAL_FILE_ID', biz: 'PLAB_BIZ_FILE_ID', bank: 'PLAB_BANK_FILE_ID' }[kind]);
+}
+
+/** 공용 등록 폼에서 받는 프랩 서류 (직인은 제외) */
+function plabFile_(kind) {
+  return assetFile_({ biz: 'PLAB_BIZ_FILE_ID', bank: 'PLAB_BANK_FILE_ID' }[kind]);
+}
+
+function assetFile_(key) {
   if (!key) return { ok: false, error: 'bad_kind' };
   var fileId = prop_(key);
   if (!fileId) return { ok: false, error: 'not_configured' };
   var blob = DriveApp.getFileById(fileId).getBlob();
   return { ok: true, name: blob.getName(), mime: blob.getContentType(), data: Utilities.base64Encode(blob.getBytes()) };
+}
+
+/**
+ * 공용 거래처 등록 폼 (tax.plab.life/join)
+ * 누구나 제출할 수 있으므로 거래처 탭에 '확인 대기'로 들어가고, 운영팀이 '확인 완료'로 바꿔야 청구서 화면에서 서류가 있는 것으로 봅니다.
+ */
+function postJoin_(b) {
+  if (String(b.website || '')) return { ok: true }; // 사람 눈에 안 보이는 함정 칸을 채운 자동 제출은 조용히 버립니다.
+  var d = digits_(b.bizNo);
+  if (!validBiz_(d)) return { ok: false, error: 'invalid_biz' };
+  if (limited_(d, 'joinBiz')) return { ok: false, error: 'rate_limited' };
+  var type = JOIN_TYPES[b.type];
+  if (!type) return { ok: false, error: 'bad_choice' };
+  var legal = String(b.legalName || '').trim().slice(0, 80);
+  var brand = String(b.brand || '').trim().slice(0, 60) || legal;
+  var ceo = String(b.ceo || '').trim().slice(0, 40);
+  var contact = String(b.contact || '').trim().slice(0, 40);
+  var phone = String(b.phone || '').replace(/[^\d-]/g, '').slice(0, 20);
+  var email = String(b.email || '').trim().slice(0, 120);
+  if (!legal || !ceo || !contact || phone.replace(/\D/g, '').length < 9) return { ok: false, error: 'missing_fields' };
+  if (email && !validEmail_(email)) return { ok: false, error: 'invalid_email' };
+  if (b.type !== 'receive' && !email) return { ok: false, error: 'missing_email' };
+  if (!b.agree) return { ok: false, error: 'no_agree' };
+
+  var byKind = {};
+  (b.files || []).forEach(function (f) { if (f && f.kind) byKind[f.kind] = f; });
+  if (!byKind.biz) return { ok: false, error: 'missing_files' };
+  if (b.type !== 'pay' && !byKind.bank) return { ok: false, error: 'missing_files' };
+
+  var root = DriveApp.getFolderById(prop_('DOCS_FOLDER_ID'));
+  var folderName = brand + '_' + fmtBiz_(d);
+  var it = root.getFoldersByName(folderName);
+  var folder = it.hasNext() ? it.next() : root.createFolder(folderName);
+  var urls = {};
+  ['biz', 'bank'].forEach(function (k) {
+    var f = byKind[k];
+    if (!f) return;
+    var mime = String(f.mime || '').toLowerCase();
+    if (ALLOWED_MIME.indexOf(mime) < 0) throw new Error('bad_type');
+    var bytes = Utilities.base64Decode(String(f.data || ''));
+    if (!bytes.length || bytes.length > MAX_FILE_BYTES) throw new Error('bad_size');
+    var ext = (String(f.name || '').match(/\.[a-z0-9]{2,5}$/i) || [''])[0];
+    var label = k === 'biz' ? '사업자등록증' : '통장사본';
+    urls[k] = folder.createFile(Utilities.newBlob(bytes, mime, label + '_' + fmtBiz_(d) + '_등록폼' + ext)).getUrl();
+  });
+
+  var cl = sheet_('client');
+  var existing = rowsByHeader_(cl).filter(function (c) { return digits_(c['사업자번호']) === d; })[0];
+  var note = '';
+  if (existing) {
+    // 이미 있는 거래처: 비어 있는 칸만 채우고, 서류는 비어 있을 때만 바꿉니다.
+    var rIdx = rowIndexByBiz_(cl, d);
+    var fill = function (n, v) { var col = colOf_(cl, n); if (col && v && !String(existing[n] || '').trim()) cl.getRange(rIdx, col).setValue(v); };
+    fill('상호', brand); fill('사업자명', legal); fill('대표자', ceo); fill('세금계산서 이메일', email);
+    fill('담당자', contact); fill('담당자 연락처', phone); fill('거래 유형', type);
+    var wrote = false;
+    if (urls.biz && !existing['사업자등록증']) { cl.getRange(rIdx, colOf_(cl, '사업자등록증')).setValue(urls.biz); wrote = true; }
+    if (urls.bank && !existing['통장사본']) { cl.getRange(rIdx, colOf_(cl, '통장사본')).setValue(urls.bank); wrote = true; }
+    if (wrote) { cl.getRange(rIdx, colOf_(cl, '확인')).setValue('확인 대기'); cl.getRange(rIdx, colOf_(cl, '제출일')).setValue(new Date()); }
+    else note = '이미 서류가 있는 거래처예요. 새로 올린 파일은 폴더에만 저장했어요.';
+  } else {
+    appendByHeader_(cl, {
+      '사업자번호': fmtBiz_(d), '상호': brand, '사업자명': legal, '대표자': ceo, '세금계산서 이메일': email,
+      '담당자': contact, '담당자 연락처': phone, '거래 유형': type, '등록 경로': '등록 폼', '확인': '확인 대기',
+      '사업자등록증': urls.biz || '', '통장사본': urls.bank || '', '제출일': new Date()
+    });
+  }
+  refreshAll();
+
+  notifySlack_(':inbox_tray: *거래처 등록 폼 제출* — ' + brand + (legal !== brand ? ' (' + legal + ')' : '') + ' · ' + fmtBiz_(d) + '\n'
+    + type + ' · 대표 ' + ceo + ' · 담당 ' + contact + ' ' + phone + (email ? ' · ' + email : '') + '\n'
+    + '<' + folder.getUrl() + '|서류 폴더 열기> · 서류를 확인한 뒤 거래처 탭 \'확인\'을 *확인 완료*로 바꿔주세요.' + (note ? '\n' + note : ''));
+  return { ok: true };
 }
 
 function postInquiry_(b) {
@@ -544,7 +639,7 @@ function postRegister_(b) {
 
   // 이미 서류가 있는 거래처면 청구서에 연결만
   var existing = rowsByHeader_(sheet_('client')).filter(function (c) { return digits_(c['사업자번호']) === d; })[0];
-  if (existing && existing['사업자등록증'] && existing['통장사본']) {
+  if (existing && docsOk_(existing)) {
     linkInvoice(existing['대표자'] || ceo);
     if (email && !existing['세금계산서 이메일']) setClientCell_(d, '세금계산서 이메일', email);
     refreshAll();
@@ -661,7 +756,7 @@ function loadAll_() {
 
   var clientByBiz = {};
   var clients = rowsByHeader_(sheet_('client')).map(function (o) {
-    var c = { obj: o, biz: digits_(o['사업자번호']), hasDocs: !!(o['사업자등록증'] && o['통장사본']) };
+    var c = { obj: o, biz: digits_(o['사업자번호']), hasDocs: docsOk_(o), pending: o['확인'] === '확인 대기' };
     if (c.biz) clientByBiz[c.biz] = c;
     return c;
   });
@@ -738,8 +833,13 @@ function findInvoice_(id) {
 
 function isRegistered_(d) {
   return rowsByHeader_(sheet_('client')).some(function (c) {
-    return digits_(c['사업자번호']) === d && c['사업자등록증'] && c['통장사본'];
+    return digits_(c['사업자번호']) === d && docsOk_(c);
   });
+}
+
+/** 세금계산서 발행에 필요한 서류가 갖춰졌는지. 사업자등록증이 있고, 등록 폼 제출분이면 운영팀 확인이 끝나야 해요. */
+function docsOk_(o) {
+  return !!o['사업자등록증'] && o['확인'] !== '확인 대기';
 }
 
 /** 그 해의 PLAB-연도-NNNN 중 가장 큰 번호 + 1 */

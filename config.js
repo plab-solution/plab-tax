@@ -14,6 +14,7 @@ window.PLAB_CONFIG = {
     email: 'ops@plabsolution.com',
     bank: '우리은행',
     account: '1005-704-098702',
-    holder: '주식회사 프랩(PLAB Inc.)'
+    holder: '주식회사 프랩(PLAB Inc.)',
+    taxEmail: 'ops@plabsolution.com'
   }
 };

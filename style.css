@@ -113,6 +113,33 @@ textarea:focus,.field:focus{outline:none;border-color:var(--green);box-shadow:0 
 .tool-body{display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:14px;background:var(--green-bg)}
 .tool-body.sent{font-size:14px;color:var(--green-d)}
 
+/* 거래처 등록 폼 */
+.g16{gap:16px}.g24{gap:24px}.gap12{gap:12px}
+.plab-box{display:flex;flex-direction:column;gap:14px;padding:20px;border-radius:16px;background:var(--green-bg)}
+.plab-box.left{align-items:flex-start;width:100%;gap:4px;margin-top:8px;text-align:left}
+.tiles.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tiles.two .tile{min-height:104px}
+.plab-info{margin:0;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.plab-info>div{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.plab-info dt{color:var(--muted);font-size:13px;flex-shrink:0}
+.plab-info dd{margin:0;text-align:right}
+.plab-info .mail{padding-top:12px;border-top:1px solid var(--line2);flex-direction:column;align-items:stretch;gap:6px}
+.plab-info .mail dd{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;min-width:0}
+.plab-info .mail b{font-size:16px;word-break:break-all}
+.btn-green.sm{min-height:36px;padding:0 12px;font-size:12px}
+.sec-title{font-size:15px;font-weight:700;padding-top:4px;border-top:1px solid var(--line);padding-top:20px}
+.choice{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.choice legend{margin-bottom:10px;padding:0;font-size:15px;font-weight:700}
+.opt{display:flex;align-items:center;gap:12px;min-height:60px;padding:12px 16px;border:1px solid var(--line2);border-radius:14px;cursor:pointer}
+.opt:hover{border-color:var(--green)}
+.opt input{width:20px;height:20px;accent-color:var(--green);flex-shrink:0;margin:0}
+.opt span{display:flex;flex-direction:column;gap:2px}
+.opt b{font-size:15px}
+.opt small{font-size:12px;color:var(--muted)}
+.opt:has(input:checked){border-color:var(--green);background:var(--green-bg);box-shadow:inset 0 0 0 1px var(--green)}
+.agree{display:flex;align-items:flex-start;gap:10px;font-size:14px;line-height:1.6;cursor:pointer}
+.agree input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--green);flex-shrink:0}
+
 /* 지난 청구 */
 .history{display:flex;flex-direction:column;gap:6px}
 .history b{font-size:15px}

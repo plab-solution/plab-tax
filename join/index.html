@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#FFFFFF">
+<title>거래처 등록 · 주식회사 프랩</title>
+<meta name="description" content="주식회사 프랩과 거래하시는 곳은 세금계산서와 대금 지급에 필요한 서류를 이곳에서 주고받아요.">
+<meta property="og:title" content="주식회사 프랩 거래처 등록">
+<meta property="og:description" content="세금계산서와 대금 지급에 필요한 서류를 한 번에 주고받아요.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<main class="page">
+
+  <!-- 등록 폼 -->
+  <section id="v-form" class="col">
+    <div class="topbar">
+      <span class="wordmark">PLAB</span>
+      <span class="muted small">거래처 등록</span>
+    </div>
+
+    <div class="greet">
+      <h1>프랩 거래처 등록</h1>
+      <span class="muted">세금계산서 발행과 대금 지급에 필요한 서류를 서로 주고받아요. 한 번 등록하면 다음 거래부터는 다시 묻지 않아요.</span>
+    </div>
+
+    <!-- 프랩 서류 -->
+    <section class="plab-box">
+      <span class="now-tag">프랩 서류</span>
+      <div class="tiles two">
+        <button type="button" class="tile" data-asset="biz">
+          <span class="tile-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></span>
+          <b>사업자등록증</b><span>내려받기</span>
+        </button>
+        <button type="button" class="tile" data-asset="bank">
+          <span class="tile-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></span>
+          <b>통장 사본</b><span>내려받기</span>
+        </button>
+      </div>
+      <dl class="plab-info">
+        <div><dt>상호</dt><dd><span data-co="name"></span> · <span class="num" data-co="bizNo"></span></dd></div>
+        <div><dt>입금 계좌</dt><dd><span data-co="bank"></span> <span class="num" data-co="account"></span></dd></div>
+        <div class="mail">
+          <dt>세금계산서 받는 이메일</dt>
+          <dd><b data-co="taxEmail"></b><button type="button" class="btn-green sm" id="copy-mail">복사</button></dd>
+        </div>
+      </dl>
+      <span class="muted small">프랩에 세금계산서를 발행하실 때 위 이메일로 보내주세요.</span>
+    </section>
+
+    <form id="join-form" class="stack g24" novalidate>
+      <fieldset class="choice">
+        <legend class="label">프랩과 어떻게 거래하세요?</legend>
+        <label class="opt"><input type="radio" name="type" value="pay"><span><b>프랩에 대금을 보내요</b><small>프랩이 세금계산서를 발행해 드려요</small></span></label>
+        <label class="opt"><input type="radio" name="type" value="receive"><span><b>프랩에서 대금을 받아요</b><small>세금계산서를 프랩에 발행해 주세요</small></span></label>
+        <label class="opt"><input type="radio" name="type" value="both"><span><b>둘 다예요</b><small>서로 주고받는 거래가 있어요</small></span></label>
+      </fieldset>
+
+      <div class="stack g16">
+        <span class="sec-title">사업자 정보</span>
+        <div class="stack g8">
+          <label for="biz" class="label">사업자등록번호</label>
+          <input id="biz" class="field num" type="text" inputmode="numeric" autocomplete="off" placeholder="000-00-00000" required>
+        </div>
+        <div class="stack g8">
+          <label for="legal" class="label">상호 <span class="muted">(사업자등록증에 적힌 대로)</span></label>
+          <input id="legal" class="field" type="text" autocomplete="organization" maxlength="80" placeholder="주식회사 ○○○" required>
+        </div>
+        <div class="stack g8">
+          <label for="brand" class="label">브랜드·매장명 <span class="muted">(선택)</span></label>
+          <input id="brand" class="field" type="text" maxlength="60" placeholder="상호와 다르게 부르는 이름이 있으면 적어주세요">
+        </div>
+        <div class="stack g8">
+          <label for="ceo" class="label">대표자</label>
+          <input id="ceo" class="field" type="text" autocomplete="name" maxlength="40" placeholder="홍길동" required>
+        </div>
+      </div>
+
+      <div class="stack g16">
+        <span class="sec-title">담당자</span>
+        <div class="grid2 gap12">
+          <div class="stack g8">
+            <label for="contact" class="label">이름</label>
+            <input id="contact" class="field" type="text" maxlength="40" placeholder="김담당" required>
+          </div>
+          <div class="stack g8">
+            <label for="phone" class="label">연락처</label>
+            <input id="phone" class="field num" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="010-0000-0000" required>
+          </div>
+        </div>
+        <div class="stack g8" id="email-wrap">
+          <label for="email" class="label">세금계산서 받을 이메일 <span class="muted" id="email-opt">(선택)</span></label>
+          <input id="email" class="field" type="email" inputmode="email" autocomplete="email" maxlength="120" placeholder="tax@company.co.kr">
+          <span class="muted small">프랩이 발행하는 전자세금계산서가 이 주소로 가요.</span>
+        </div>
+      </div>
+
+      <div class="stack g10">
+        <span class="sec-title">서류</span>
+        <label class="upload" id="up-biz">
+          <span class="up-ico" aria-hidden="true">1</span>
+          <span class="stack g2 grow"><b>사업자등록증</b><span class="fname">눌러서 촬영하거나 파일 고르기</span></span>
+          <input class="sr" type="file" accept="image/*,application/pdf" data-kind="biz">
+        </label>
+        <label class="upload" id="up-bank">
+          <span class="up-ico" aria-hidden="true">2</span>
+          <span class="stack g2 grow"><b>통장 사본 <span class="muted" id="bank-opt">(선택)</span></b><span class="fname">눌러서 촬영하거나 파일 고르기</span></span>
+          <input class="sr" type="file" accept="image/*,application/pdf" data-kind="bank">
+        </label>
+        <span class="muted small" id="bank-hint">프랩에서 대금을 받으시는 경우, 입금받을 계좌의 통장 사본이 필요해요.</span>
+      </div>
+
+      <!-- 사람에게는 보이지 않는 칸 (자동 제출 차단용) -->
+      <div class="sr" aria-hidden="true"><label for="website">웹사이트</label><input id="website" type="text" tabindex="-1" autocomplete="off"></div>
+
+      <label class="agree">
+        <input type="checkbox" id="agree">
+        <span>입력한 정보와 서류를 세금계산서 발행과 대금 지급에만 쓰는 데 동의해요.</span>
+      </label>
+
+      <span class="err" id="form-err" role="alert"></span>
+      <button type="submit" class="btn-dark big" id="submit" disabled>등록하기</button>
+    </form>
+
+    <p class="foot muted small"><span data-co="name"></span> · <a data-co-href="tel" href="#"><span data-co="phone"></span></a> · <a data-co-href="mail" href="#"><span data-co="email"></span></a></p>
+  </section>
+
+  <!-- 완료 -->
+  <section id="v-done" class="col done" hidden>
+    <span class="done-ico" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>
+    <h1>등록을 받았어요</h1>
+    <p class="muted"><b id="done-name"></b><br>프랩 담당자가 서류를 확인한 뒤 거래를 진행할게요.</p>
+    <div class="plab-box left">
+      <span class="muted small">프랩에 세금계산서를 발행하실 땐</span>
+      <b data-co="taxEmail"></b>
+    </div>
+  </section>
+
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="../config.js"></script>
+<script src="join.js"></script>
+</body>
+</html>
