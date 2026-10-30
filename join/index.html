@@ -31,15 +31,16 @@
 
     <!-- 프랩 서류 -->
     <section class="plab-box">
-      <span class="now-tag">프랩 서류</span>
+      <span class="now-tag">프랩 서류 받기</span>
+      <span class="muted small">거래처 등록에 필요하시면 프랩 서류를 내려받으세요.</span>
       <div class="tiles two">
         <button type="button" class="tile" data-asset="biz">
           <span class="tile-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></span>
-          <b>사업자등록증</b><span>내려받기</span>
+          <b>프랩 사업자등록증</b><span>내려받기</span>
         </button>
         <button type="button" class="tile" data-asset="bank">
           <span class="tile-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></span>
-          <b>통장 사본</b><span>내려받기</span>
+          <b>프랩 통장 사본</b><span>내려받기</span>
         </button>
       </div>
       <dl class="plab-info">
@@ -61,7 +62,7 @@
       </fieldset>
 
       <div class="stack g16">
-        <span class="sec-title">사업자 정보</span>
+        <span class="sec-title">귀사 사업자 정보</span>
         <div class="stack g8">
           <label for="biz" class="label">사업자등록번호</label>
           <input id="biz" class="field num" type="text" inputmode="numeric" autocomplete="off" placeholder="000-00-00000" required>
@@ -100,18 +101,19 @@
       </div>
 
       <div class="stack g10">
-        <span class="sec-title">서류</span>
+        <span class="sec-title">귀사 서류 보내기</span>
+        <span class="muted small">프랩에 보내주실 <b>귀사(거래처)의</b> 서류예요. 사진이나 PDF로 첨부해 주세요.</span>
         <label class="upload" id="up-biz">
-          <span class="up-ico" aria-hidden="true">1</span>
-          <span class="stack g2 grow"><b>사업자등록증</b><span class="fname">눌러서 촬영하거나 파일 고르기</span></span>
+          <span class="up-ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 20h14"/></svg></span>
+          <span class="stack g2 grow"><b>귀사 사업자등록증</b><span class="fname">눌러서 사진 찍거나 파일 첨부</span></span>
           <input class="sr" type="file" accept="image/*,application/pdf" data-kind="biz">
         </label>
         <label class="upload" id="up-bank">
-          <span class="up-ico" aria-hidden="true">2</span>
-          <span class="stack g2 grow"><b>통장 사본 <span class="muted" id="bank-opt">(선택)</span></b><span class="fname">눌러서 촬영하거나 파일 고르기</span></span>
+          <span class="up-ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 20h14"/></svg></span>
+          <span class="stack g2 grow"><b>귀사 통장 사본 <span class="muted" id="bank-opt">(선택)</span></b><span class="fname">눌러서 사진 찍거나 파일 첨부</span></span>
           <input class="sr" type="file" accept="image/*,application/pdf" data-kind="bank">
         </label>
-        <span class="muted small" id="bank-hint">프랩에서 대금을 받으시는 경우, 입금받을 계좌의 통장 사본이 필요해요.</span>
+        <span class="muted small" id="bank-hint">프랩에서 대금을 받으시는 경우, 입금받으실 계좌의 통장 사본이 필요해요.</span>
       </div>
 
       <!-- 사람에게는 보이지 않는 칸 (자동 제출 차단용) -->

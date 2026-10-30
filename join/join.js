@@ -157,7 +157,7 @@
           box.classList.add('done');
         }).catch(function (e) {
           delete state.files[kind]; box.classList.remove('done');
-          box.querySelector('.fname').textContent = '눌러서 촬영하거나 파일 고르기';
+          box.querySelector('.fname').textContent = '눌러서 사진 찍거나 파일 첨부';
           $('#form-err').textContent = e.message === 'size' ? '10MB 이하 파일만 올릴 수 있어요.' : '파일을 읽지 못했어요. 다른 파일로 시도해주세요.';
         }).then(check);
       });
